@@ -143,8 +143,8 @@ def generate_graph(name_data: pd.DataFrame, profile_data: dict, till_year: int =
     :param faculty_member_only: True if excluding all other non-SCSE co-authors
     :return: graph
     """
-    # TODO: add support for 'by_year'
-    if not faculty_member_only or till_year is not None:
+    # TODO: add non-faculty member co_authors
+    if not faculty_member_only:
         raise NotImplementedError
 
     graph = nx.Graph()
@@ -259,5 +259,5 @@ def visualize_graph(graph: nx.Graph) -> None:
 if __name__ == '__main__':
     auth_name_data = read_faculty()
     auth_profiles = fetch_dblp_profile(auth_name_data=auth_name_data, reuse=True, target_pickle_name='profiles')
-    graph = generate_graph(auth_name_data, auth_profiles)
+    graph = generate_graph(auth_name_data, auth_profiles, till_year=None)
     visualize_graph(graph)
