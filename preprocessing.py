@@ -238,7 +238,7 @@ def visualize_graph(G):
             connections += prop['weight']
         node_connections.append(connections)
         properties = '<br />'.join(['%s: %s' % (k, v) for (k, v) in G.nodes[adjacencies[0]].items()])
-        node_text.append(f'{adjacencies[0]}<br />{connections} Connections<br /> {properties}')
+        node_text.append(f'{adjacencies[0]}<br />{connections} Connections<br />{properties}')
 
     node_trace.marker.color = node_connections
     node_trace.text = node_text
