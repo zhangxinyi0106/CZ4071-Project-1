@@ -13,7 +13,7 @@ from tqdm import tqdm
 from data import DATA_PATH
 
 
-def _read_xlsx_file(path, filename, sheet_name, required_fields: set):
+def _read_xlsx_file(path, filename, sheet_name, required_fields: set) -> pd.DataFrame:
     target_file = osp.join(path, filename)
 
     if not osp.exists(target_file):
@@ -30,7 +30,7 @@ def _read_xlsx_file(path, filename, sheet_name, required_fields: set):
     return name_list
 
 
-def read_faculty(path=DATA_PATH, filename='Faculty.xlsx', sheet_name='by course'):
+def read_faculty(path=DATA_PATH, filename='Faculty.xlsx', sheet_name='by course') -> pd.DataFrame:
     """
     read the faculty member namelist
     :param sheet_name: name of the sheet
@@ -42,7 +42,7 @@ def read_faculty(path=DATA_PATH, filename='Faculty.xlsx', sheet_name='by course'
                            required_fields={'Faculty', 'Position', 'Gender', 'Management', 'DBLP', 'Area'})
 
 
-def read_top_conferences(path=DATA_PATH, filename='Top.xlsx', sheet_name='Sheet1'):
+def read_top_conferences(path=DATA_PATH, filename='Top.xlsx', sheet_name='Sheet1') -> pd.DataFrame:
     """
     read the top conference namelist
     :param sheet_name: name of the sheet
@@ -54,7 +54,7 @@ def read_top_conferences(path=DATA_PATH, filename='Top.xlsx', sheet_name='Sheet1
                            required_fields={'Area', 'Venue', 'Comments'})
 
 
-def fetch_dblp_profile(auth_name_data, reuse=False, target_pickle_name=None):
+def fetch_dblp_profile(auth_name_data, reuse=False, target_pickle_name=None) -> dict:
     """
     Fetch dblp personal profiles given a name list
     :param auth_name_data: a name list containing urls with faculty information
@@ -95,7 +95,7 @@ def fetch_dblp_profile(auth_name_data, reuse=False, target_pickle_name=None):
     return profile_data
 
 
-def _append_co_auther_to_graph(authors: list, pid: str, pid_to_name: dict, faculty_member_name: str, graph):
+def _append_co_auther_to_graph(authors: list, pid: str, pid_to_name: dict, faculty_member_name: str, graph) -> None:
     """
     connect nodes or modify the weight of edges based on the co_author relationship
     :param authors:
@@ -133,7 +133,8 @@ def _validate_article(article: dict, till_year: Union[int, None]) -> list:
     return authors
 
 
-def generate_graph(name_data: pd.DataFrame, profile_data: dict, till_year: int = None, faculty_member_only=True):
+def generate_graph(name_data: pd.DataFrame, profile_data: dict, till_year: int = None,
+                   faculty_member_only=True) -> nx.Graph:
     """
     construct a graph from the given faculty list and dblp data
     :param name_data:
@@ -180,16 +181,16 @@ def generate_graph(name_data: pd.DataFrame, profile_data: dict, till_year: int =
     return graph
 
 
-def visualize_graph(G):
+def visualize_graph(graph: nx.Graph) -> None:
     """
     Plot networkx graph with plotly. Modified from the internet
-    :param G: graph to be plotted
+    :param graph: graph to be plotted
     :return:
     """
-    pos = nx.spring_layout(G)
+    pos = nx.spring_layout(graph)
     edge_x = []
     edge_y = []
-    for edge in G.edges():
+    for edge in graph.edges():
         x0, y0 = pos[edge[0]]
         x1, y1 = pos[edge[1]]
         edge_x.append(x0)
@@ -207,7 +208,7 @@ def visualize_graph(G):
 
     node_x = []
     node_y = []
-    for node in G.nodes():
+    for node in graph.nodes():
         x, y = pos[node]
         node_x.append(x)
         node_y.append(y)
@@ -232,12 +233,12 @@ def visualize_graph(G):
 
     node_connections = []
     node_text = []
-    for _, adjacencies in enumerate(G.adjacency()):
+    for _, adjacencies in enumerate(graph.adjacency()):
         connections = 0
         for prop in adjacencies[1].values():
             connections += prop['weight']
         node_connections.append(connections)
-        properties = '<br />'.join(['%s: %s' % (k, v) for (k, v) in G.nodes[adjacencies[0]].items()])
+        properties = '<br />'.join(['%s: %s' % (k, v) for (k, v) in graph.nodes[adjacencies[0]].items()])
         node_text.append(f'{adjacencies[0]}<br />{connections} Connections<br />{properties}')
 
     node_trace.marker.color = node_connections
@@ -258,5 +259,5 @@ def visualize_graph(G):
 if __name__ == '__main__':
     auth_name_data = read_faculty()
     auth_profiles = fetch_dblp_profile(auth_name_data=auth_name_data, reuse=True, target_pickle_name='profiles')
-    G = generate_graph(auth_name_data, auth_profiles)
-    visualize_graph(G)
+    graph = generate_graph(auth_name_data, auth_profiles)
+    visualize_graph(graph)
