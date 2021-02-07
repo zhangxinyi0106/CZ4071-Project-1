@@ -196,9 +196,14 @@ def visualize_graph(graph: nx.Graph) -> None:
     pos = nx.spring_layout(graph)
     edge_x = []
     edge_y = []
+    etext = [f'{k[0]} - {k[1]}: {v} Related Paper(s)' for (k, v) in nx.get_edge_attributes(graph, 'weight').items()]
+    xtext = []
+    ytext = []
     for edge in graph.edges():
         x0, y0 = pos[edge[0]]
         x1, y1 = pos[edge[1]]
+        xtext.append((x0 + x1) / 2)
+        ytext.append((y0 + y1) / 2)
         edge_x.append(x0)
         edge_x.append(x1)
         edge_x.append(None)
@@ -209,8 +214,13 @@ def visualize_graph(graph: nx.Graph) -> None:
     edge_trace = go.Scatter(
         x=edge_x, y=edge_y,
         line=dict(width=0.5, color='#888'),
-        hoverinfo='none',
+        hoverinfo=None,
         mode='lines')
+
+    eweights_trace = go.Scatter(x=xtext, y=ytext,
+                                mode='markers',
+                                text=etext,
+                                hovertemplate='%{text}<extra></extra>')
 
     node_x = []
     node_y = []
@@ -241,7 +251,6 @@ def visualize_graph(graph: nx.Graph) -> None:
     node_text = []
     for _, adjacencies in enumerate(graph.adjacency()):
         related_papers = 0
-
         for prop in adjacencies[1].values():
             related_papers += prop['weight']
         node_total_edge_weight.append(related_papers)
@@ -253,7 +262,7 @@ def visualize_graph(graph: nx.Graph) -> None:
     node_trace.marker.color = node_total_edge_weight
     node_trace.text = node_text
 
-    fig = go.Figure(data=[edge_trace, node_trace],
+    fig = go.Figure(data=[edge_trace, node_trace, eweights_trace],
                     layout=go.Layout(
                         title='NTU SCSE Faculty Member Graph',
                         showlegend=False,
