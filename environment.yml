@@ -14,4 +14,29 @@ dependencies:
   - wheel=0.36.2=pyhd3eb1b0_0
   - wincertstore=0.2=py37_0
   - zlib=1.2.11=h62dcd97_4
-
+  - pip:
+    - chardet==4.0.0
+    - cycler==0.10.0
+    - decorator==4.4.2
+    - et-xmlfile==1.0.1
+    - idna==2.10
+    - jdcal==1.4.1
+    - kiwisolver==1.3.1
+    - matplotlib==3.3.4
+    - networkx==2.5
+    - numpy==1.20.0
+    - openpyxl==3.0.6
+    - pandas==1.2.1
+    - pillow==8.1.0
+    - plotly==4.14.3
+    - pyparsing==2.4.7
+    - python-dateutil==2.8.1
+    - pytz==2021.1
+    - requests==2.25.1
+    - retrying==1.3.3
+    - six==1.15.0
+    - tqdm==4.56.0
+    - urllib3==1.26.3
+    - xlrd==2.0.1
+    - xmltodict==0.12.0
+prefix: C:\Users\Xinyi\anaconda3\envs\CZ4071-Project-1
