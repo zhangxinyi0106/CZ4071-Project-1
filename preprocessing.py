@@ -3,6 +3,9 @@ import pickle
 import re
 from typing import Union
 
+import dash
+import dash_core_components as dcc
+import dash_html_components as html
 import networkx as nx
 import pandas as pd
 import plotly.graph_objects as go
@@ -265,13 +268,21 @@ def visualize_graph(graph: nx.Graph) -> None:
     fig = go.Figure(data=[edge_trace, node_trace, eweights_trace],
                     layout=go.Layout(
                         title='NTU SCSE Faculty Member Graph',
+                        height=900,
                         showlegend=False,
                         hovermode='closest',
                         margin=dict(b=20, l=5, r=5, t=40),
                         xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
                         yaxis=dict(showgrid=False, zeroline=False, showticklabels=False))
                     )
-    fig.show()
+
+    app = dash.Dash(__name__)
+
+    app.layout = html.Div([
+        dcc.Graph(id="graph", figure=fig),
+    ], style={'height': "100vh"}, )
+
+    app.run_server(debug=False, port=8080)
 
 
 if __name__ == '__main__':
