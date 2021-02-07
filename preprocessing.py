@@ -111,9 +111,11 @@ def _append_co_auther_to_graph(authors: list, pid: str, pid_to_name: dict, facul
             continue
         elif co_pid in pid_to_name.keys():
             co_name = pid_to_name[co_pid]
-            # TODO: how to reflect the weight and directed path on graph
+            # TODO: make it directional
             if (faculty_member_name, co_name) in list(graph.edges):
                 graph[faculty_member_name][co_name]['weight'] += 1
+            elif (co_name, faculty_member_name) in list(graph.edges):
+                graph[co_name][faculty_member_name]['weight'] += 1
             else:
                 graph.add_edge(faculty_member_name, co_name, weight=1)
 
@@ -178,6 +180,10 @@ def generate_graph(name_data: pd.DataFrame, profile_data: dict, till_year: int =
                                                    graph=graph)
             pbar.update(1)
 
+    # remove repeated counting (undirected)
+    for _, _, a in graph.edges(data=True):
+        a['weight'] //= 2
+
     return graph
 
 
@@ -225,23 +231,26 @@ def visualize_graph(graph: nx.Graph) -> None:
             size=10,
             colorbar=dict(
                 thickness=15,
-                title='Node Connections',
+                title='Related Papers',
                 xanchor='left',
                 titleside='right'
             ),
             line_width=2))
 
-    node_connections = []
+    node_total_edge_weight = []
     node_text = []
     for _, adjacencies in enumerate(graph.adjacency()):
-        connections = 0
-        for prop in adjacencies[1].values():
-            connections += prop['weight']
-        node_connections.append(connections)
-        properties = '<br />'.join(['%s: %s' % (k, v) for (k, v) in graph.nodes[adjacencies[0]].items()])
-        node_text.append(f'{adjacencies[0]}<br />{connections} Connections<br />{properties}')
+        related_papers = 0
 
-    node_trace.marker.color = node_connections
+        for prop in adjacencies[1].values():
+            related_papers += prop['weight']
+        node_total_edge_weight.append(related_papers)
+        properties = '<br />'.join(['%s: %s' % (k, v) for (k, v) in graph.nodes[adjacencies[0]].items()])
+        node_text.append(
+            f'{adjacencies[0]}<br />Degree: {len(adjacencies[1].keys())}<br />'
+            f'Related Papers: {related_papers}<br />{properties}')
+
+    node_trace.marker.color = node_total_edge_weight
     node_trace.text = node_text
 
     fig = go.Figure(data=[edge_trace, node_trace],
