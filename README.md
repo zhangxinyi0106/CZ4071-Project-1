@@ -14,9 +14,9 @@ cd CZ4071-Project-1
 conda env create -n <ur_env_name> -f environment.yml
 conda activate <ur_env_name>
 ```
-After creation of new environment:
+(PyCharm only) After creation of new environment:
 * go to Settings -> Project:<project_name> -> Change Project Interpreter.
-* Add python.exe under `PATH_TO_PYTHON/envs/UR_ENV` as interpreter.
+* Add python.exe under `PATH_TO_ANACONDA/envs/UR_ENV` as interpreter.
 
 ###Update Dependency
 
