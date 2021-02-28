@@ -344,16 +344,32 @@ def _prepare_figure(graph: nx.Graph) -> go.Figure:
 
 
 if __name__ == '__main__':
-    auth_name_data = read_faculty()
-    auth_profiles = fetch_dblp_profile(auth_name_data=auth_name_data, reuse=True, target_pickle_name='profiles')
-    # If you would like to visualize a single graph
-    # start
-    # G = generate_graph(auth_name_data, auth_profiles)
-    # visualize_graph(graph=G)
-    # end
+    process_list = []
 
-    # If you would like to visualize a sequence of graphs by year
-    # start
-    T, G = generate_graphs(auth_name_data, auth_profiles)
-    visualize_graphs(tags=T, graphs=G)
-    # end
+    try:
+        from multiprocessing import Process
+
+        auth_name_data = read_faculty()
+        auth_profiles = fetch_dblp_profile(auth_name_data=auth_name_data, reuse=True, target_pickle_name='profiles')
+        G = generate_graph(auth_name_data, auth_profiles)
+        p1 = Process(target=visualize_graph, kwargs={
+            'graph': G,
+            'port': 8080,
+        })
+        process_list.append(p1)
+        p1.start()
+
+        T, G = generate_graphs(auth_name_data, auth_profiles)
+        p2 = Process(target=visualize_graphs, kwargs={
+            'tags': T,
+            'graphs': G,
+            'port': 8081,
+        })
+        process_list.append(p2)
+        p2.start()
+
+        p1.join()  # this two lines will hang cuz server won't stop by itself
+        p2.join()
+    except KeyboardInterrupt:
+        for p in process_list:
+            p.close()
