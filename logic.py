@@ -5,10 +5,12 @@ import pandas as pd
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
+import threading
 
 from windows import Ui_MainWindow, Ui_Dialog, checkbox_Dialog, \
     newFacultyDialog, propertyDialog, analyzeDialog, facultyMemDialog
-
+from faculty import Analyzer
+from preprocessing import *
 
 # from checkbox_2 import checkbox_Dialog
 
@@ -142,13 +144,21 @@ class MyWindow(QMainWindow):
         self.cb = CheckBox()
         self.cb.show()
 
+    def update(self,year,p):
+        analyzer = Analyzer()
+        G = generate_graph(analyzer.auth_name_data, analyzer.auth_profiles, by_year=year)
+        visualize_graph(graph=G,port=p)
+
     def updateGraph(self, i):
         if i == 0:
             pass
         else:
             year = 2000 + i - 1
             print("chose year: ", year)
-            QDesktopServices.openUrl(QUrl('http://127.0.0.1:8080/'))
+            port=get_free_port()
+            t = threading.Thread(target=self.update, args=(year,port,), name='function')
+            t.start()
+            QDesktopServices.openUrl(QUrl('http://127.0.0.1:'+str(port)+'/'))
         # elif i==1:
         #     self.hide()
         #     self.myDialog = MyDialog()

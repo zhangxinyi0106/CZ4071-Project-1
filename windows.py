@@ -36,7 +36,7 @@ class Ui_MainWindow(object):
         self.comboBox2 = QtWidgets.QComboBox(self.centralwidget)
         self.comboBox2.setGeometry(QtCore.QRect(50, 290, 611, 51))
         self.comboBox2.setObjectName("comboBox2")
-        for i in range(4):
+        for i in range(7):
             self.comboBox2.addItem("")
         self.comboBox3 = QtWidgets.QComboBox(self.centralwidget)
         self.comboBox3.setGeometry(QtCore.QRect(50, 290, 611, 51))
@@ -75,7 +75,7 @@ class Ui_MainWindow(object):
         self.pushButton.setText(_translate("MainWindow", "Select faculty members"))
         self.pushButton2.setText(_translate("MainWindow", "Add new faculty"))
         selectYearText = ["Select one", "show network until year 2000"]
-        questionList = ["Select one", "p1", "p2", "p3"]
+        questionList = ["Select one", "Number of Nodes", "Number of Links", "Average Degree", "Clustering coefficient", "Diameter", "Number of papers"]
         options = ["Select one", "collaboration between faculty of different ranks",
                    "collaboration between faculty holding or held management position and non-management faculty",
                    "collaboration between faculty of different areas in computer science",
@@ -84,7 +84,7 @@ class Ui_MainWindow(object):
             selectYearText.append("show network until year "+str(i))
         for i in range(23):
             self.comboBox.setItemText(i, _translate("Interface", selectYearText[i]))
-        for i in range(4):
+        for i in range(7):
             self.comboBox2.setItemText(i, _translate("Interface", questionList[i]))
         for i in range(5):
             self.comboBox3.setItemText(i, _translate("Interface", options[i]))
@@ -230,6 +230,8 @@ self.gridLayout.addLayout(self.horizontalLayout_{}, {}, 0, 1, 1)
             exec("""if self.checkbox_{}.isChecked():
     ret.append(self.checkbox_{}.text())""".format(i, i))
         print(ret)
+
+        #connected with API to show the subgraph
         QDesktopServices.openUrl(QUrl('http://127.0.0.1:8080/'))
         return ret
 
@@ -282,9 +284,18 @@ class propertyDialog(object):
         elif i==2:
             self.label.setText(_translate("Form", "TextLabel2"))
             self.label_2.setPixmap(QtGui.QPixmap("pictures/graph2.png"))
+        elif i==3:
+            self.label.setText(_translate("Form", "TextLabel2"))
+            self.label_2.setPixmap(QtGui.QPixmap("pictures/graph3.png"))
+        elif i==4:
+            self.label.setText(_translate("Form", "TextLabel2"))
+            self.label_2.setPixmap(QtGui.QPixmap("pictures/graph4.png"))
+        elif i==5:
+            self.label.setText(_translate("Form", "TextLabel2"))
+            self.label_2.setPixmap(QtGui.QPixmap("pictures/graph5.png"))
         else:
             self.label.setText(_translate("Form", "TextLabel3"))
-            self.label_2.setPixmap(QtGui.QPixmap("pictures/graph3.png"))
+            self.label_2.setPixmap(QtGui.QPixmap("pictures/graph6.png"))
         self.label_2.setScaledContents(True)
         self.label_2.setTextInteractionFlags(QtCore.Qt.LinksAccessibleByMouse)
         self.label_2.setObjectName("label_2")
@@ -324,7 +335,7 @@ class analyzeDialog(object):
 
         self.label.setObjectName("label")
         self.label_2 = QtWidgets.QLabel(Form)
-        self.label_2.setGeometry(QtCore.QRect(20, 80, 301, 421))
+        self.label_2.setGeometry(QtCore.QRect(20, 80, 301, 210))
         self.label_2.setFrameShape(QtWidgets.QFrame.Panel)
         self.label_2.setObjectName("label_2")
 
@@ -355,19 +366,82 @@ class analyzeDialog(object):
             self.summary.setText(_translate("Form", "summary"))
             self.label.setText(_translate("Form", "Table"))
             if i==1:
-                self.tableView.setColumnCount(4)
+                self.tableView.setColumnCount(1)
                 self.tableView.setRowCount(4)
-                for i in range(4):
-                    for j in range(4):
-                        self.tableView.setItem(i, j, QTableWidgetItem("string"))
+
+                #self.tableView.setItem(1, 1, QTableWidgetItem("string"))
+                self.checkbox1 = QtWidgets.QCheckBox(Form)
+                self.checkbox1.setGeometry(QtCore.QRect(20, 400, 120, 30))
+                self.checkbox1.setObjectName("rank1")
+                self.checkbox1.setText(_translate("Dialog", "Professor"))
+                self.checkbox2 = QtWidgets.QCheckBox(Form)
+                self.checkbox2.setGeometry(QtCore.QRect(140, 400, 120, 30))
+                self.checkbox2.setObjectName("rank2")
+                self.checkbox2.setText(_translate("Dialog", "Assistant Professor"))
+                self.checkbox3 = QtWidgets.QCheckBox(Form)
+                self.checkbox3.setGeometry(QtCore.QRect(260, 400, 120, 30))
+                self.checkbox3.setObjectName("rank3")
+                self.checkbox3.setText(_translate("Dialog", "Lecturer"))
+
+                self.submit = QtWidgets.QPushButton(Form)
+                self.submit.setObjectName("submit")
+                self.submit.setText(_translate("Form", "submit(Chose Exactly two of them)"))
+                self.submit.setGeometry(QtCore.QRect(20, 500, 300, 30))
+                self.submit.clicked.connect(self.checkstatus)
             elif i==2:
-                pass
+                self.tableView.setColumnCount(1)
+                self.tableView.setRowCount(4)
+                self.tableView.setHorizontalHeaderLabels(["Data"])
+                self.tableView.setVerticalHeaderLabels(
+                    ["num of paper", "top conference", "top prof areas", "average centrality score"])
+                data = [1, 2, 3, 4]
+                for i in range(4):
+                    self.tableView.setItem(1, i - 1, QTableWidgetItem(str(data[i])))
             else:
-                pass
+                self.tableView.setColumnCount(1)
+                self.tableView.setRowCount(4)
+
+                # self.tableView.setItem(1, 1, QTableWidgetItem("string"))
+                self.checkbox1 = QtWidgets.QCheckBox(Form)
+                self.checkbox1.setGeometry(QtCore.QRect(20, 400, 120, 30))
+                self.checkbox1.setObjectName("rank1")
+                self.checkbox1.setText(_translate("Dialog", "Machine Learning"))
+                self.checkbox2 = QtWidgets.QCheckBox(Form)
+                self.checkbox2.setGeometry(QtCore.QRect(140, 400, 120, 30))
+                self.checkbox2.setObjectName("rank2")
+                self.checkbox2.setText(_translate("Dialog", "Computer Vision"))
+                self.checkbox3 = QtWidgets.QCheckBox(Form)
+                self.checkbox3.setGeometry(QtCore.QRect(260, 400, 120, 30))
+                self.checkbox3.setObjectName("rank3")
+                self.checkbox3.setText(_translate("Dialog", "Artificial Intelligence"))
+
+                self.submit = QtWidgets.QPushButton(Form)
+                self.submit.setObjectName("submit")
+                self.submit.setText(_translate("Form", "submit"))
+                self.submit.setGeometry(QtCore.QRect(140, 500, 60, 30))
+                self.submit.clicked.connect(self.checkstatus)
+
         self.ok.setText(_translate("Form", "OK"))
         self.cancel.setText(_translate("Form", "Cancel"))
 
         #self.label_2.setText(_translate("Form", "TextLabel"))
+
+    def checkstatus(self):
+        ret = []
+        for i in range(1,4):
+            exec("""if self.checkbox{}.isChecked():
+            ret.append(self.checkbox{}.text())""".format(i, i))
+        print(ret)
+        if len(ret)==2:
+            self.tableView.setHorizontalHeaderLabels(["Data"])
+            self.tableView.setVerticalHeaderLabels(
+                ["num of paper", "top conference", "top prof areas", "average centrality score"])
+            #Call API to get data
+            data=[1,2,3,4]
+            for i in range(4):
+                self.tableView.setItem(1, i-1, QTableWidgetItem(str(data[i])))
+
+
 
 class facultyMemDialog(object):
     def setupUi(self, Form):
@@ -385,11 +459,11 @@ class facultyMemDialog(object):
         self.label.setTextInteractionFlags(QtCore.Qt.LinksAccessibleByMouse)
         self.label.setObjectName("label_2")
         self.property = QtWidgets.QComboBox(Form)
-        self.property.setGeometry(QtCore.QRect(40, 240, 121, 22))
+        self.property.setGeometry(QtCore.QRect(40, 240, 221, 22))
         self.property.setObjectName("property")
         self.property.addItem("")
         self.property.addItem("")
-        self.property.addItem("")
+        #self.property.addItem("")
         self.layoutWidget = QtWidgets.QWidget(Form)
         self.layoutWidget.setGeometry(QtCore.QRect(130, 520, 571, 25))
         self.layoutWidget.setObjectName("layoutWidget")
@@ -412,9 +486,9 @@ class facultyMemDialog(object):
         _translate = QtCore.QCoreApplication.translate
         Form.setWindowTitle(_translate("Form", "Form"))
         self.graph.setText(_translate("Form", "Graph"))
-        self.property.setItemText(0, _translate("Form", "Property1"))
-        self.property.setItemText(1, _translate("Form", "Property2"))
-        self.property.setItemText(2, _translate("Form", "Property3"))
+        self.property.setItemText(0, _translate("Form", "the growth and speed of growth"))
+        self.property.setItemText(1, _translate("Form", "number of top papers"))
+        #self.property.setItemText(2, _translate("Form", "Property3"))
 
     def updateGraph(self):
         imagePath = "pictures"
