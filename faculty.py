@@ -1,4 +1,5 @@
-from data import DATA_PATH
+from typing import Set
+
 from preprocessing import *
 
 
@@ -86,7 +87,33 @@ class Analyzer:
                         excellence[k] += 1
         return excellence
 
+    @classmethod
+    def filter_graph_by_names(cls, source_graphs: Union[nx.Graph, List[nx.Graph]],
+                              faculty_names: Union[Set[str], List[str]]) -> Union[nx.Graph, List[nx.Graph]]:
+        """
+        Get subgraph(s) with the appointed nodes from the original graph(s)
+        :param source_graphs: the original complete graph(s)
+        :param faculty_names: list of the faculty member names
+        :return: networkx graph or list of graphs, depending on the number or source graph passed
+        """
+        if type(faculty_names) is not set:
+            faculty_names = set(faculty_names)
+
+        if type(source_graphs) is list:
+            return [cls._get_subgraph(source_graph=g, node_names=faculty_names) for g in source_graphs]
+        else:
+            return cls._get_subgraph(source_graphs, faculty_names)
+
+    @staticmethod
+    def _get_subgraph(source_graph: nx.Graph, node_names: Set[str]) -> nx.Graph:
+        unexpected_names = node_names - set(source_graph.nodes)
+        if len(unexpected_names) != 0:
+            print(f"Unexpected Name(s) {unexpected_names} Encountered: No Such Node(s) in the Source Graph")
+        return nx.subgraph(source_graph, node_names)
+
 
 if __name__ == '__main__':
     analyzer = Analyzer()
-    print(analyzer.auth_excellence)
+    T, G = generate_graphs(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles)
+    subgraphs = analyzer.filter_graph_by_names(G, ['Miao Chunyan', 'Tan Rui', 'Wen Yonggang', 'AAAA'])
+    visualize_graphs(tags=T, graphs=subgraphs, port=get_free_port())
