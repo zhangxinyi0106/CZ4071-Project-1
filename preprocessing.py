@@ -1,7 +1,9 @@
+import datetime
 import os.path as osp
 import pickle
 import re
-from typing import Union
+import socket
+from typing import Union, List, Tuple
 
 import dash
 import dash_core_components as dcc
@@ -14,6 +16,19 @@ import xmltodict
 from tqdm import tqdm
 
 from data import DATA_PATH
+
+
+def get_free_port():
+    """
+    get an unused port on the localhost
+    :return: port number in integer format
+    """
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(("", 0))
+    s.listen(1)
+    port = s.getsockname()[1]
+    s.close()
+    return port
 
 
 def _read_xlsx_file(path, filename, sheet_name, required_fields: set) -> pd.DataFrame:
@@ -123,14 +138,14 @@ def _append_co_auther_to_graph(authors: list, pid: str, pid_to_name: dict, facul
                 graph.add_edge(faculty_member_name, co_name, weight=1)
 
 
-def _validate_article(article: dict, till_year: Union[int, None]) -> list:
+def _validate_article(article: dict, by_year: Union[int, None]) -> list:
     """
     validate the article by its year and existence of co_authors
     :param article: article to be inspected
-    :param till_year: (included) data till witch year that the graph should present
+    :param by_year: (included) data till witch year that the graph should present
     :return: co_author list; empty when the article is invalid
     """
-    if till_year is not None and int(article['year']) > till_year:
+    if by_year is not None and int(article['year']) > by_year:
         return []
     authors = article['author'] if 'author' in article.keys() else article['editor']
     if type(authors) is not list:
@@ -138,13 +153,13 @@ def _validate_article(article: dict, till_year: Union[int, None]) -> list:
     return authors
 
 
-def generate_graph(name_data: pd.DataFrame, profile_data: dict, till_year: int = None,
+def generate_graph(name_data: pd.DataFrame, profile_data: dict, by_year: int = None,
                    faculty_member_only=True) -> nx.Graph:
     """
-    construct a graph from the given faculty list and dblp data
+    construct a single graph from the given faculty list and dblp data with the appointed year
     :param name_data:
     :param profile_data:
-    :param till_year: (included) data till witch year that the graph should present
+    :param by_year: (included) data till witch year that the graph should present
     :param faculty_member_only: True if excluding all other non-SCSE co-authors
     :return: graph
     """
@@ -169,14 +184,14 @@ def generate_graph(name_data: pd.DataFrame, profile_data: dict, till_year: int =
             publications = v['dblpperson']['r']
             if type(publications) is not list:
                 article = publications[next(iter(publications))]
-                authors = _validate_article(article=article, till_year=till_year)
+                authors = _validate_article(article=article, by_year=by_year)
                 if len(authors) >= 2:
                     _append_co_auther_to_graph(authors=authors, pid=pid, pid_to_name=pid_to_name, faculty_member_name=k,
                                                graph=graph)
             else:
                 for pub in publications:
                     article = pub[next(iter(pub))]
-                    authors = _validate_article(article=article, till_year=till_year)
+                    authors = _validate_article(article=article, by_year=by_year)
                     if len(authors) >= 2:
                         _append_co_auther_to_graph(authors=authors, pid=pid, pid_to_name=pid_to_name,
                                                    faculty_member_name=k,
@@ -190,10 +205,76 @@ def generate_graph(name_data: pd.DataFrame, profile_data: dict, till_year: int =
     return graph
 
 
-def visualize_graph(graph: nx.Graph) -> None:
+def generate_graphs(name_data: pd.DataFrame, profile_data: dict, till_year: int = None,
+                    faculty_member_only=True) -> Tuple[List[str], List[nx.Graph]]:
+    """
+    construct a list of graphs in sequence of years (e.g. [graph by 2000, graph by 2001 ..., graph by till_year])
+    from the given faculty list and dblp data
+    :param name_data:
+    :param profile_data:
+    :param till_year: (included) data till witch year that the graph should present. Default till the latest year.
+    :param faculty_member_only: True if excluding all other non-SCSE co-authors
+    :return: list of graphs
+    """
+    if till_year is None:
+        till_year = datetime.datetime.now().year
+
+    tags = []
+    graphs = []
+    for year in range(2000, till_year):
+        tags.append(str(year))
+        graphs.append(generate_graph(name_data=name_data, profile_data=profile_data,
+                                     by_year=year, faculty_member_only=faculty_member_only))
+
+    return tags, graphs
+
+
+def visualize_graph(graph: nx.Graph, port: int = 8080) -> None:
     """
     Plot networkx graph with plotly. Modified from the internet
     :param graph: graph to be plotted
+    :param port: port number for the server to be run, default 8080
+    :return:
+    """
+    fig = _prepare_figure(graph)
+
+    app = dash.Dash(__name__)
+
+    app.layout = html.Div([
+        dcc.Graph(id="graph", figure=fig, style={'height': '90vh'}),
+    ], style={'height': "100%"}, )
+
+    app.run_server(debug=False, port=port)
+
+
+def visualize_graphs(tags: List[str], graphs: List[nx.Graph], port: int = 8080) -> None:
+    """
+    Plot networkx graph with plotly. Modified from the internet
+    :param tags: name of the tags
+    :param graphs: graph to be plotted
+    :param port: port number for the server to be run, default 8080
+    :return:
+    """
+    figs = []
+    for graph in graphs:
+        figs.append(_prepare_figure(graph))
+
+    app = dash.Dash(__name__)
+
+    app.layout = html.Div(html.Div([
+        dcc.Tabs(
+            [dcc.Tab(label=tag, children=[dcc.Graph(id=tag, figure=fig, style={'height': '90vh'})]) for tag, fig in
+             zip(tags, figs)],
+        )
+    ]), style={'height': "100%"}, )
+
+    app.run_server(debug=False, port=port)
+
+
+def _prepare_figure(graph: nx.Graph) -> go.Figure:
+    """
+    Prepare plotly figure using the given graph
+    :param graph:
     :return:
     """
     pos = nx.spring_layout(graph)
@@ -265,28 +346,46 @@ def visualize_graph(graph: nx.Graph) -> None:
     node_trace.marker.color = node_total_edge_weight
     node_trace.text = node_text
 
-    fig = go.Figure(data=[edge_trace, node_trace, eweights_trace],
-                    layout=go.Layout(
-                        title='NTU SCSE Faculty Member Graph',
-                        height=900,
-                        showlegend=False,
-                        hovermode='closest',
-                        margin=dict(b=20, l=5, r=5, t=40),
-                        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-                        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False))
-                    )
-
-    app = dash.Dash(__name__)
-
-    app.layout = html.Div([
-        dcc.Graph(id="graph", figure=fig),
-    ], style={'height': "100vh"}, )
-
-    app.run_server(debug=False, port=8080)
+    return go.Figure(data=[edge_trace, node_trace, eweights_trace],
+                     layout=go.Layout(
+                         title='NTU SCSE Faculty Member Graph',
+                         showlegend=False,
+                         hovermode='closest',
+                         margin=dict(b=20, l=5, r=5, t=40),
+                         xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                         yaxis=dict(showgrid=False, zeroline=False, showticklabels=False))
+                     )
 
 
 if __name__ == '__main__':
-    auth_name_data = read_faculty()
-    auth_profiles = fetch_dblp_profile(auth_name_data=auth_name_data, reuse=True, target_pickle_name='profiles')
-    graph = generate_graph(auth_name_data, auth_profiles, till_year=None)
-    visualize_graph(graph)
+    process_list = []
+
+    try:
+        from multiprocessing import Process
+
+        auth_name_data = read_faculty()
+        auth_profiles = fetch_dblp_profile(auth_name_data=auth_name_data, reuse=True, target_pickle_name='profiles')
+        G1 = generate_graph(auth_name_data, auth_profiles)
+        target_port_1 = get_free_port()
+        p1 = Process(target=visualize_graph, kwargs={
+            'graph': G1,
+            'port': target_port_1,
+        })
+        process_list.append(p1)
+        p1.start()
+
+        T, G2 = generate_graphs(auth_name_data, auth_profiles)
+        target_port_2 = get_free_port()
+        p2 = Process(target=visualize_graphs, kwargs={
+            'tags': T,
+            'graphs': G2,
+            'port': target_port_2,
+        })
+        process_list.append(p2)
+        p2.start()
+
+        p1.join()  # this two lines will hang cuz server won't stop by itself
+        p2.join()
+    except KeyboardInterrupt:
+        for p in process_list:
+            p.close()
