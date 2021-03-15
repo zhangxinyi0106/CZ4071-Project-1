@@ -2,6 +2,7 @@ import datetime
 import os.path as osp
 import pickle
 import re
+import socket
 from typing import Union, List, Tuple
 
 import dash
@@ -15,6 +16,19 @@ import xmltodict
 from tqdm import tqdm
 
 from data import DATA_PATH
+
+
+def get_free_port():
+    """
+    get an unused port on the localhost
+    :return: port number in integer format
+    """
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(("", 0))
+    s.listen(1)
+    port = s.getsockname()[1]
+    s.close()
+    return port
 
 
 def _read_xlsx_file(path, filename, sheet_name, required_fields: set) -> pd.DataFrame:
@@ -344,16 +358,34 @@ def _prepare_figure(graph: nx.Graph) -> go.Figure:
 
 
 if __name__ == '__main__':
-    auth_name_data = read_faculty()
-    auth_profiles = fetch_dblp_profile(auth_name_data=auth_name_data, reuse=True, target_pickle_name='profiles')
-    # If you would like to visualize a single graph
-    # start
-    # G = generate_graph(auth_name_data, auth_profiles)
-    # visualize_graph(graph=G)
-    # end
+    process_list = []
 
-    # If you would like to visualize a sequence of graphs by year
-    # start
-    T, G = generate_graphs(auth_name_data, auth_profiles)
-    visualize_graphs(tags=T, graphs=G)
-    # end
+    try:
+        from multiprocessing import Process
+
+        auth_name_data = read_faculty()
+        auth_profiles = fetch_dblp_profile(auth_name_data=auth_name_data, reuse=True, target_pickle_name='profiles')
+        G1 = generate_graph(auth_name_data, auth_profiles)
+        target_port_1 = get_free_port()
+        p1 = Process(target=visualize_graph, kwargs={
+            'graph': G1,
+            'port': target_port_1,
+        })
+        process_list.append(p1)
+        p1.start()
+
+        T, G2 = generate_graphs(auth_name_data, auth_profiles)
+        target_port_2 = get_free_port()
+        p2 = Process(target=visualize_graphs, kwargs={
+            'tags': T,
+            'graphs': G2,
+            'port': target_port_2,
+        })
+        process_list.append(p2)
+        p2.start()
+
+        p1.join()  # this two lines will hang cuz server won't stop by itself
+        p2.join()
+    except KeyboardInterrupt:
+        for p in process_list:
+            p.close()
