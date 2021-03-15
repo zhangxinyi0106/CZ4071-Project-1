@@ -184,12 +184,12 @@ class Analyzer:
         return clust_coeff
 
     @staticmethod
-    def plot_degree_distribution_hist(G):
+    def plot_degree_distribution_hist(g:nx.Graph):
         """
         Plot the degree distribution histogram for the graph.
-        :param graph: a networkx graph object
+        :param g: a networkx graph object
         """
-        degrees = [G.degree(n) for n in G.nodes()]
+        degrees = [g.degree(n) for n in g.nodes()]
         plt.hist(degrees)
         plt.xlabel("k")
         plt.ylabel("Hist")
@@ -197,15 +197,16 @@ class Analyzer:
         plt.show()
 
     @staticmethod
-    def plot_degree_distribution_loglog(G, normalized=True):
+    def plot_degree_distribution_loglog(g: nx.Graph, normalized=True):
         """
         Plot the log-log degree distribution for the graph.
         In this case, number of nodes are too small to show a beautiful plot.
-        :param graph: a networkx graph object
+        :param g: a networkx graph object
+        :param normalized: default true
         """
-        aux_y = nx.degree_histogram(G)
+        aux_y = nx.degree_histogram(g)
         aux_x = np.arange(0, len(aux_y)).tolist()
-        n_nodes = G.number_of_nodes()
+        n_nodes = g.number_of_nodes()
         if normalized:
             for i in range(len(aux_y)):
                 aux_y[i] = aux_y[i] / n_nodes
@@ -216,20 +217,49 @@ class Analyzer:
         plt.show()
 
     @staticmethod
-    def analyze_centrality_of_sub_graph(subgraph):
+    def _highest_centrality(cent_dict: dict):
         """
-        Unfinished implementation.
-        :param subgraph:
+        Returns a tuple (node,value) with the node
+        with largest value from Networkx centrality dictionary.
+        """
+        # Create ordered tuple of centrality data
+        cent_items = [(b, a) for (a, b) in cent_dict.items()]
+        # Sort in descending order
+        cent_items.sort()
+        cent_items.reverse()
+        return tuple(reversed(cent_items[0]))
+
+    def analyze_centrality_of_main_component(self, g: nx.Graph):
+        """
+        Compute node centrality measures after
+        extracting the main connected component.
+        :param g: graph
         :return:
         """
-        basic_info = subgraph.info()
-        print(basic_info)
+        g_ud = g.to_undirected()
+        components = nx.connected_components(g_ud)
+        max_component = max(components, key=len)
+        graph_mc = g_ud.subgraph(max_component)
+        # bet_cen = {}
+        # Betweenness centrality
+        bet_cen = nx.betweenness_centrality(graph_mc)
+        print("Node with highest betweenness centrality: ",
+              self._highest_centrality(bet_cen))
+        # Closeness centrality
+        clo_cen = nx.closeness_centrality(graph_mc)
+        print("Node with highest closeness centrality: ",
+              self._highest_centrality(clo_cen))
+        # Eigenvector centrality
+        eig_cen = nx.eigenvector_centrality(graph_mc)
+        print("Node with highest eigenvector centrality: ",
+              self._highest_centrality(eig_cen))
 
 
 if __name__ == '__main__':
     analyzer = Analyzer()
     T, G = generate_graphs(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles)
+    analyzer.analyze_centrality_of_main_component(G[10])
     # analyzer.plot_degree_distribution_hist(G[5])
     # subgraphs = analyzer.filter_graph_by_names(G, ['Miao Chunyan', 'Tan Rui', 'Wen Yonggang', 'AAAA'])
-    subgraphs = analyzer.filter_graph_by_rank(G, {'Professor','Lecturer'})
-    visualize_graphs(tags=T, graphs=subgraphs, port=get_free_port())
+    # subgraphs = analyzer.filter_graph_by_rank(G, {'Professor','Lecturer'})
+    # visualize_graphs(tags=T, graphs=subgraphs, port=get_free_port())
