@@ -113,7 +113,7 @@ def fetch_dblp_profile(auth_name_data, reuse=False, target_pickle_name=None) -> 
     return profile_data
 
 
-def _append_co_auther_to_graph(authors: list, pid: str, pid_to_name: dict, faculty_member_name: str, graph) -> None:
+def _append_co_auther_to_graph(authors: list, pid: str, pid_to_name: dict, faculty_member_name: str, graph, article) -> None:
     """
     connect nodes or modify the weight of edges based on the co_author relationship
     :param authors:
@@ -129,6 +129,7 @@ def _append_co_auther_to_graph(authors: list, pid: str, pid_to_name: dict, facul
             continue
         elif co_pid in pid_to_name.keys():
             co_name = pid_to_name[co_pid]
+
             # TODO: make it directional
             if (faculty_member_name, co_name) in list(graph.edges):
                 graph[faculty_member_name][co_name]['weight'] += 1
@@ -136,6 +137,17 @@ def _append_co_auther_to_graph(authors: list, pid: str, pid_to_name: dict, facul
                 graph[co_name][faculty_member_name]['weight'] += 1
             else:
                 graph.add_edge(faculty_member_name, co_name, weight=1)
+
+            if "booktitle" in article:
+                venue = article["booktitle"]
+            elif "journal" in article:
+                venue = article["journal"]
+            else:
+                venue = "Book"
+
+            for name in (faculty_member_name, co_name):
+                graph.nodes[name]['Colab_Venues'].add(venue)
+
 
 
 def _validate_article(article: dict, by_year: Union[int, None]) -> list:
@@ -173,6 +185,7 @@ def generate_graph(name_data: pd.DataFrame, profile_data: dict, by_year: int = N
     pid_to_name = dict()
     for name in name_data.Faculty.unique():
         properties = name_data.loc[name_data['Faculty'] == name].drop("Faculty", 1).squeeze().to_dict()
+        properties["Colab_Venues"] = set()
         graph.add_node(name, **properties)
         pid_to_name[profile_data[name]['dblpperson']['@pid']] = name
 
@@ -187,7 +200,7 @@ def generate_graph(name_data: pd.DataFrame, profile_data: dict, by_year: int = N
                 authors = _validate_article(article=article, by_year=by_year)
                 if len(authors) >= 2:
                     _append_co_auther_to_graph(authors=authors, pid=pid, pid_to_name=pid_to_name, faculty_member_name=k,
-                                               graph=graph)
+                                               graph=graph, article=article)
             else:
                 for pub in publications:
                     article = pub[next(iter(pub))]
@@ -195,7 +208,7 @@ def generate_graph(name_data: pd.DataFrame, profile_data: dict, by_year: int = N
                     if len(authors) >= 2:
                         _append_co_auther_to_graph(authors=authors, pid=pid, pid_to_name=pid_to_name,
                                                    faculty_member_name=k,
-                                                   graph=graph)
+                                                   graph=graph, article=article)
             pbar.update(1)
 
     # remove repeated counting (undirected)

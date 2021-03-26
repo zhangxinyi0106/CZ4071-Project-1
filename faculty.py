@@ -1,6 +1,6 @@
 import time
 from typing import Set
-
+from collections import Counter
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
@@ -162,7 +162,7 @@ class Analyzer:
         return float(s) / float(nnodes)
 
     @staticmethod
-    def get_largest_component_diameter(graph):
+    def get_largest_component_diameter(graph: nx.Graph):
         """
         Return the diameter of the largest component of the graph, prevents unconnected exception.
         :param graph: a networkx graph object
@@ -173,7 +173,7 @@ class Analyzer:
         # use the max() command to find the largest one:
         largest_component = max(components, key=len)
         # construct a subgraph of largest component
-        subgraph = G.subgraph(largest_component)
+        subgraph = graph.subgraph(largest_component)
         diameter = nx.diameter(subgraph)
         return diameter
 
@@ -195,10 +195,18 @@ class Analyzer:
         :param g: a networkx graph object
         :return file name of the saved picture
         """
-        degrees = [g.degree(n) for n in g.nodes()]
-        plt.hist(degrees)
+        fig, ax = plt.subplots()
+        degrees = [d for _, d in g.degree()]
+        ax.hist(degrees, bins=np.arange(max(degrees) + 2) - 0.5, density=False)
+
+        for rect in ax.patches:
+            height = rect.get_height()
+            ax.annotate(f'{int(height)}', xy=(rect.get_x() + rect.get_width() / 2, height),
+                        xytext=(0, 2), textcoords='offset points', ha='center', va='bottom', fontsize=6)
+
         plt.xlabel("Degree")
         plt.ylabel("Number of People")
+        plt.xticks(range(0, max(degrees) + 1))
         plt.title("Degree Distribution Histogram")
         if name is not None:
             filename = f'{name}.png'
@@ -208,13 +216,13 @@ class Analyzer:
         return filename
 
     @staticmethod
-    def plot_degree_distribution_loglog(g: nx.Graph, normalized=True, name=None) -> str:
+    def plot_degree_distribution_loglog(g: nx.Graph, normalized=False, name=None) -> str:
         """
         Plot the log-log degree distribution for the graph.
         In this case, number of nodes are too small to show a beautiful plot.
         :param name: optional) appoint a name to the generated image
         :param g: a networkx graph object
-        :param normalized: default true
+        :param normalized: default False
         :return file name of the saved picture
         """
         aux_y = nx.degree_histogram(g)
@@ -223,10 +231,14 @@ class Analyzer:
         if normalized:
             for i in range(len(aux_y)):
                 aux_y[i] = aux_y[i] / n_nodes
-        plt.loglog(aux_x, aux_y)
+        plt.figure()
+        ax = plt.gca()
+        ax.plot(aux_x, aux_y, marker='o', linewidth=0)
+        ax.set_yscale('log')
+        ax.set_xscale('log')
         plt.xlabel("k")
         plt.ylabel("P(k)")
-        plt.title("Degree Distribution Loglog")
+        plt.title("Degree Distribution Log-log Plot")
         if name is not None:
             filename = f'{name}.png'
         else:
@@ -267,15 +279,42 @@ class Analyzer:
             eigenvector_centrality=self._sort_centrality(eig_cen),
         )
 
+    def detect_preferential_attachment(self, graphs: List[nx.Graph]):
+        # TODO: use formulas presented in W5 slides
+        pass
+
+    @staticmethod
+    def get_colab_properties(graphs: List[nx.Graph]):
+        """
+        Given a list of graphs, return multiple collaboration related properties
+        :param graphs:
+        :return: in sequence: number of partners, total number of collab papers, total number of published venues,
+         most frequent venues (all graph-wise)
+        """
+        total_num_of_partners = [graph.number_of_edges() for graph in graphs]
+        total_num_of_papers = [int(graph.size(weight="weight")) for graph in graphs]
+        total_num_of_venues = []
+        most_frequent_venues = []
+        for graph in graphs:
+            total_venues = []
+            for _, attributes in graph.nodes(data=True):
+                total_venues += (list(attributes["Colab_Venues"]))
+
+            total_num_of_venues.append(len(set(total_venues)))
+            most_frequent_venues.append(sorted([(venue, frequency // 2) for (venue, frequency)
+                                                in Counter(total_venues).items()], key=lambda x: x[1], reverse=True))
+        return total_num_of_partners, total_num_of_papers, total_num_of_venues, most_frequent_venues
+
 
 if __name__ == '__main__':
     analyzer = Analyzer()
     G = generate_graph(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles)
-    betweenness_centrality = analyzer.analyze_centrality_of_main_component(G)["betweenness_centrality"]
-    print(betweenness_centrality)
-    # analyzer.plot_degree_distribution_loglog(G, normalized=True)
-    # analyzer.analyze_centrality_of_main_component(G[10])
-    # analyzer.plot_degree_distribution_hist(G[5])
+    analyzer.plot_degree_distribution_hist(G)
+    analyzer.plot_degree_distribution_loglog(G, normalized=False)
+    # _, G = generate_graphs(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles)
+    # betweenness_centrality = analyzer.analyze_centrality_of_main_component(G)["betweenness_centrality"]
+    # print(betweenness_centrality)
+    # analyzer.get_colab_properties(graphs=G)
     # subgraphs = analyzer.filter_graph_by_names(G, ['Miao Chunyan', 'Tan Rui', 'Wen Yonggang', 'AAAA'])
     # subgraphs = analyzer.filter_graph_by_rank(G, {'Professor','Lecturer'})
     # visualize_graphs(tags=T, graphs=subgraphs, port=get_free_port())
