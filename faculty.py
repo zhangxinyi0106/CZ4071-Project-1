@@ -1,9 +1,13 @@
+import time
 from typing import Set
 
-from preprocessing import *
 import matplotlib.pyplot as plt
-import numpy as np
 import networkx as nx
+import numpy as np
+
+from preprocessing import *
+from pictures import PICTURE_PATH
+
 
 class Analyzer:
     venue_to_booktitle = dict({
@@ -120,7 +124,7 @@ class Analyzer:
             return cls._get_subgraph(source_graphs, faculty_names)
 
     def filter_graph_by_rank(self, source_graphs: Union[nx.Graph, List[nx.Graph]],
-                              ranks: Union[Set[str], List[str]]) -> Union[nx.Graph, List[nx.Graph]]:
+                             ranks: Union[Set[str], List[str]]) -> Union[nx.Graph, List[nx.Graph]]:
         """
         Get subgraph(s) that filter the nodes with the designated ranks
         :param source_graphs: the original complete graph(s)
@@ -184,25 +188,34 @@ class Analyzer:
         return clust_coeff
 
     @staticmethod
-    def plot_degree_distribution_hist(g:nx.Graph):
+    def plot_degree_distribution_hist(g: nx.Graph, name=None) -> str:
         """
         Plot the degree distribution histogram for the graph.
+        :param name: (optional) appoint a name to the generated image
         :param g: a networkx graph object
+        :return file name of the saved picture
         """
         degrees = [g.degree(n) for n in g.nodes()]
         plt.hist(degrees)
-        plt.xlabel("k")
-        plt.ylabel("Hist")
-        plt.title("Degree distribution_Histogram")
-        plt.show()
+        plt.xlabel("Degree")
+        plt.ylabel("Number of People")
+        plt.title("Degree Distribution Histogram")
+        if name is not None:
+            filename = f'{name}.png'
+        else:
+            filename = f'degree_distribution_his_{int(time.time())}.png'
+        plt.savefig(osp.join(PICTURE_PATH, filename))
+        return filename
 
     @staticmethod
-    def plot_degree_distribution_loglog(g: nx.Graph, normalized=True):
+    def plot_degree_distribution_loglog(g: nx.Graph, normalized=True, name=None) -> str:
         """
         Plot the log-log degree distribution for the graph.
         In this case, number of nodes are too small to show a beautiful plot.
+        :param name: optional) appoint a name to the generated image
         :param g: a networkx graph object
         :param normalized: default true
+        :return file name of the saved picture
         """
         aux_y = nx.degree_histogram(g)
         aux_x = np.arange(0, len(aux_y)).tolist()
@@ -213,8 +226,13 @@ class Analyzer:
         plt.loglog(aux_x, aux_y)
         plt.xlabel("k")
         plt.ylabel("P(k)")
-        plt.title("Degree distribution_Loglog")
-        plt.show()
+        plt.title("Degree Distribution Loglog")
+        if name is not None:
+            filename = f'{name}.png'
+        else:
+            filename = f'degree_distribution_loglog_{int(time.time())}.png'
+        plt.savefig(osp.join(PICTURE_PATH, filename))
+        return filename
 
     @staticmethod
     def _highest_centrality(cent_dict: dict):
@@ -257,8 +275,9 @@ class Analyzer:
 
 if __name__ == '__main__':
     analyzer = Analyzer()
-    T, G = generate_graphs(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles)
-    analyzer.analyze_centrality_of_main_component(G[10])
+    G = generate_graph(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles)
+    analyzer.plot_degree_distribution_loglog(G, normalized=True)
+    # analyzer.analyze_centrality_of_main_component(G[10])
     # analyzer.plot_degree_distribution_hist(G[5])
     # subgraphs = analyzer.filter_graph_by_names(G, ['Miao Chunyan', 'Tan Rui', 'Wen Yonggang', 'AAAA'])
     # subgraphs = analyzer.filter_graph_by_rank(G, {'Professor','Lecturer'})
