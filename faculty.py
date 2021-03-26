@@ -235,48 +235,45 @@ class Analyzer:
         return filename
 
     @staticmethod
-    def _highest_centrality(cent_dict: dict):
+    def _sort_centrality(cent_dict: dict):
         """
         Returns a tuple (node,value) with the node
         with largest value from Networkx centrality dictionary.
         """
         # Create ordered tuple of centrality data
-        cent_items = [(b, a) for (a, b) in cent_dict.items()]
-        # Sort in descending order
-        cent_items.sort()
-        cent_items.reverse()
-        return tuple(reversed(cent_items[0]))
+        return sorted(list(cent_dict.items()), key=lambda x: x[1], reverse=True)
 
-    def analyze_centrality_of_main_component(self, g: nx.Graph):
+    def analyze_centrality_of_main_component(self, g: nx.Graph) -> dict:
         """
-        Compute node centrality measures after
-        extracting the main connected component.
+        Compute node centrality measures after extracting the main connected component.
         :param g: graph
-        :return:
+        :return: dictionary with type of centrality as key and sorted result as value
         """
         g_ud = g.to_undirected()
         components = nx.connected_components(g_ud)
         max_component = max(components, key=len)
         graph_mc = g_ud.subgraph(max_component)
-        # bet_cen = {}
+
         # Betweenness centrality
         bet_cen = nx.betweenness_centrality(graph_mc)
-        print("Node with highest betweenness centrality: ",
-              self._highest_centrality(bet_cen))
         # Closeness centrality
         clo_cen = nx.closeness_centrality(graph_mc)
-        print("Node with highest closeness centrality: ",
-              self._highest_centrality(clo_cen))
         # Eigenvector centrality
         eig_cen = nx.eigenvector_centrality(graph_mc)
-        print("Node with highest eigenvector centrality: ",
-              self._highest_centrality(eig_cen))
+
+        return dict(
+            betweenness_centrality=self._sort_centrality(bet_cen),
+            closeness_centrality=self._sort_centrality(clo_cen),
+            eigenvector_centrality=self._sort_centrality(eig_cen),
+        )
 
 
 if __name__ == '__main__':
     analyzer = Analyzer()
     G = generate_graph(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles)
-    analyzer.plot_degree_distribution_loglog(G, normalized=True)
+    betweenness_centrality = analyzer.analyze_centrality_of_main_component(G)["betweenness_centrality"]
+    print(betweenness_centrality)
+    # analyzer.plot_degree_distribution_loglog(G, normalized=True)
     # analyzer.analyze_centrality_of_main_component(G[10])
     # analyzer.plot_degree_distribution_hist(G[5])
     # subgraphs = analyzer.filter_graph_by_names(G, ['Miao Chunyan', 'Tan Rui', 'Wen Yonggang', 'AAAA'])
