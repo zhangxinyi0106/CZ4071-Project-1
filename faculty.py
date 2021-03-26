@@ -93,19 +93,6 @@ class Analyzer:
                         excellence[k] += 1
         return excellence
 
-    def _get_names_in_rank(cls, rank_str: str) -> set:
-        """
-        return the names in a particular rank(position)
-        :return: a set of faculty names
-        """
-        names = set()
-        for index, row in cls.auth_name_data.iterrows():
-            if row['Position'] == rank_str:
-                names.add(row['Faculty'])
-        if len(names) == 0:
-            raise ValueError(f'Unexpected Rank Name {rank_str} Encountered!')
-        return names
-
     @classmethod
     def filter_graph_by_names(cls, source_graphs: Union[nx.Graph, List[nx.Graph]],
                               faculty_names: Union[Set[str], List[str]]) -> Union[nx.Graph, List[nx.Graph]]:
@@ -134,8 +121,9 @@ class Analyzer:
         if type(ranks) is not set:
             ranks = set(ranks)
         faculty_names = set()
-        for rank in ranks:
-            faculty_names.update(self._get_names_in_rank(rank_str=rank))
+        for name, attribute in source_graphs[-1].nodes(data=True):
+            if attribute["Position"] in ranks:
+                faculty_names.add(name)
         if type(source_graphs) is list:
             return [self._get_subgraph(source_graph=g, node_names=faculty_names) for g in source_graphs]
         else:
@@ -305,13 +293,34 @@ class Analyzer:
                                                 in Counter(total_venues).items()], key=lambda x: x[1], reverse=True))
         return total_num_of_partners, total_num_of_papers, total_num_of_venues, most_frequent_venues
 
+    @classmethod
+    def get_relative_colab_weight(cls, sub_graphs: List[nx.Graph], complete_graphs: List[nx.Graph]):
+        """
+        Given a list of sub-graphs and complete graphs, return the weight of sub-graphs
+         in complete graphs on multiple collaboration related properties
+        :param complete_graphs:
+        :param sub_graphs:
+        :return: in sequence: relative number of partners, relative number of collab papers,
+         relative number of published venues
+        """
+        sub_graphs_colab_properties = cls.get_colab_properties(sub_graphs)
+        complete_graphs_colab_properties = cls.get_colab_properties(complete_graphs)
+
+        return [[sub / total for sub, total in zip(sub_graphs_colab_properties[i],
+                                                   complete_graphs_colab_properties[i])] for i in range(0, 3)]
+
 
 if __name__ == '__main__':
     analyzer = Analyzer()
-    G = generate_graph(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles)
-    analyzer.plot_degree_distribution_hist(G)
-    analyzer.plot_degree_distribution_loglog(G, normalized=False)
-    # _, G = generate_graphs(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles)
+
+    # G = generate_graph(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles)
+    # analyzer.plot_degree_distribution_hist(G)
+    # analyzer.plot_degree_distribution_loglog(G, normalized=False)
+
+    _, G = generate_graphs(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles)
+    sub_G = analyzer.filter_graph_by_rank(G, {'Professor'})
+    relative_weight = analyzer.get_relative_colab_weight(sub_G, G)
+    print(relative_weight[0])  # num of partners / total num of partners
     # betweenness_centrality = analyzer.analyze_centrality_of_main_component(G)["betweenness_centrality"]
     # print(betweenness_centrality)
     # analyzer.get_colab_properties(graphs=G)

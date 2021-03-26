@@ -149,7 +149,6 @@ def _append_co_auther_to_graph(authors: list, pid: str, pid_to_name: dict, facul
                 graph.nodes[name]['Colab_Venues'].add(venue)
 
 
-
 def _validate_article(article: dict, by_year: Union[int, None]) -> list:
     """
     validate the article by its year and existence of co_authors
