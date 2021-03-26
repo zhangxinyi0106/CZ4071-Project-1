@@ -267,9 +267,63 @@ class Analyzer:
             eigenvector_centrality=self._sort_centrality(eig_cen),
         )
 
-    def detect_preferential_attachment(self, graphs: List[nx.Graph]):
-        # TODO: use formulas presented in W5 slides
-        pass
+    @staticmethod
+    def detect_preferential_attachment(graphs: List[nx.Graph], average=False):
+        ptr = 0
+        length = len(graphs)
+        delta_degrees = []
+        while ptr <= length - 2:
+            current_graph = graphs[ptr]
+            next_graph = graphs[ptr + 1]
+
+            delta_degree = dict()
+            for node, degree in current_graph.degree():
+                if degree not in delta_degree:
+                    delta_degree[degree] = [next_graph.degree(node) - degree]
+                else:
+                    delta_degree[degree].append(next_graph.degree(node) - degree)
+
+            if average:
+                for key in delta_degree.keys():
+                    delta_degree[key] = sum(delta_degree[key]) / len(delta_degree[key])
+
+            delta_degrees.append(delta_degree)
+
+            ptr += 1
+
+        return delta_degrees
+
+    @staticmethod
+    def visualize_preferential_attachment(delta_degree_dist: dict, name=None):
+        if type(list(delta_degree_dist.values())[0]) is list:
+            is_averaged = False
+        else:
+            is_averaged = True
+
+        fig, ax = plt.subplots()
+        y_data = []
+        x_data = list(range(0, max(delta_degree_dist.keys()) + 1))
+        for i in x_data:
+            if i in delta_degree_dist:
+                y_data.append(delta_degree_dist[i])
+            else:
+                y_data.append(0 if is_averaged else [0])
+        if is_averaged:
+            ax.scatter(x_data, y_data)
+            plt.xticks(x_data)
+        else:
+            ax.boxplot(y_data, showmeans=True)
+            plt.xticks(list(range(1, max(delta_degree_dist.keys()) + 2)), x_data)
+
+        plt.xlabel("Degree")
+        plt.ylabel("Delta Degree / Delta Time")
+        plt.title("Preferential Attachment Analysis")
+        if name is not None:
+            filename = f'{name}.png'
+        else:
+            filename = f'preferential_attachment_analysis_{int(time.time())}.png'
+        plt.savefig(osp.join(PICTURE_PATH, filename))
+        return filename
 
     @staticmethod
     def get_colab_properties(graphs: List[nx.Graph]):
@@ -318,9 +372,11 @@ if __name__ == '__main__':
     # analyzer.plot_degree_distribution_loglog(G, normalized=False)
 
     _, G = generate_graphs(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles)
-    sub_G = analyzer.filter_graph_by_rank(G, {'Professor'})
-    relative_weight = analyzer.get_relative_colab_weight(sub_G, G)
-    print(relative_weight[0])  # num of partners / total num of partners
+    delta_k_data = analyzer.detect_preferential_attachment(G, average=True)
+    analyzer.visualize_preferential_attachment(delta_k_data[-10])
+    # sub_G = analyzer.filter_graph_by_rank(G, {'Professor', "Associate Professor"})
+    # relative_weight = analyzer.get_relative_colab_weight(sub_G, G)
+    # print(relative_weight[0])  # num of partners / total num of partners
     # betweenness_centrality = analyzer.analyze_centrality_of_main_component(G)["betweenness_centrality"]
     # print(betweenness_centrality)
     # analyzer.get_colab_properties(graphs=G)
