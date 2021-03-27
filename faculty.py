@@ -199,7 +199,7 @@ class Analyzer:
         if name is not None:
             filename = f'{name}.png'
         else:
-            filename = f'degree_distribution_his_{int(time.time())}.png'
+            filename = f'degree_distribution_his_{"{:.5f}".format(time.time())}.png'
         plt.savefig(osp.join(PICTURE_PATH, filename))
         return filename
 
@@ -230,7 +230,7 @@ class Analyzer:
         if name is not None:
             filename = f'{name}.png'
         else:
-            filename = f'degree_distribution_loglog_{int(time.time())}.png'
+            filename = f'degree_distribution_loglog_{"{:.5f}".format(time.time())}.png'
         plt.savefig(osp.join(PICTURE_PATH, filename))
         return filename
 
@@ -268,7 +268,7 @@ class Analyzer:
         )
 
     @staticmethod
-    def detect_preferential_attachment(graphs: List[nx.Graph], average=False):
+    def get_degree_increase(graphs: List[nx.Graph]):
         ptr = 0
         length = len(graphs)
         delta_degrees = []
@@ -283,9 +283,31 @@ class Analyzer:
                 else:
                     delta_degree[degree].append(next_graph.degree(node) - degree)
 
-            if average:
-                for key in delta_degree.keys():
-                    delta_degree[key] = sum(delta_degree[key]) / len(delta_degree[key])
+            delta_degrees.append(delta_degree)
+
+            ptr += 1
+
+        return delta_degrees
+
+    @staticmethod
+    def detect_preferential_attachment(graphs: List[nx.Graph], average=False):
+        ptr = 0
+        length = len(graphs)
+        delta_degrees = []
+        while ptr <= length - 2:
+            current_graph = graphs[ptr]
+            next_graph = graphs[ptr + 1]
+
+            delta_degree = dict()
+            for node, degree in current_graph.degree():
+                increased_degree = next_graph.degree(node)
+                if degree == 0 and increased_degree != 0:  # this is a newly joined node, check its adj
+                    for connected_node in list(next_graph[node].keys()):
+                        connected_node_original_degee = current_graph.degree(connected_node)
+                        if connected_node_original_degee not in delta_degree:
+                            delta_degree[connected_node_original_degee] = 1
+                        else:
+                            delta_degree[connected_node_original_degee] += 1
 
             delta_degrees.append(delta_degree)
 
@@ -294,12 +316,7 @@ class Analyzer:
         return delta_degrees
 
     @staticmethod
-    def visualize_preferential_attachment(delta_degree_dist: dict, name=None):
-        if type(list(delta_degree_dist.values())[0]) is list:
-            is_averaged = False
-        else:
-            is_averaged = True
-
+    def visualize_degree_increase(delta_degree_dist: dict, name=None):
         fig, ax = plt.subplots()
         y_data = []
         x_data = list(range(0, max(delta_degree_dist.keys()) + 1))
@@ -307,21 +324,45 @@ class Analyzer:
             if i in delta_degree_dist:
                 y_data.append(delta_degree_dist[i])
             else:
-                y_data.append(0 if is_averaged else [0])
-        if is_averaged:
-            ax.scatter(x_data, y_data)
-            plt.xticks(x_data)
-        else:
-            ax.boxplot(y_data, showmeans=True)
-            plt.xticks(list(range(1, max(delta_degree_dist.keys()) + 2)), x_data)
+                y_data.append([0])
+
+        ax.boxplot(y_data, showmeans=True)
+        plt.xticks(list(range(1, max(delta_degree_dist.keys()) + 2)), x_data)
 
         plt.xlabel("Degree")
         plt.ylabel("Delta Degree / Delta Time")
+        plt.title("Degree Increase Analysis")
+        if name is not None:
+            filename = f'{name}.png'
+        else:
+            filename = f'degree_increase_analysis_{"{:.5f}".format(time.time())}.png'
+        plt.savefig(osp.join(PICTURE_PATH, filename))
+        return filename
+
+    @staticmethod
+    def visualize_preferential_attachment(delta_degree_dist: dict, name=None):
+        if not delta_degree_dist:
+            raise ValueError('No New Nodes Joint The Collab Graph In That Year')
+        fig, ax = plt.subplots()
+        y_data = []
+        x_data = list(range(0, max(delta_degree_dist.keys()) + 1))
+        for i in x_data:
+            if i in delta_degree_dist:
+                y_data.append(delta_degree_dist[i])
+            else:
+                y_data.append(0)
+
+        ax.scatter(x_data, y_data)
+        plt.xticks(x_data)
+        plt.yticks(range(0, max(y_data) + 2))
+
+        plt.xlabel("Degree")
+        plt.ylabel("Number Of New Comers Attached")
         plt.title("Preferential Attachment Analysis")
         if name is not None:
             filename = f'{name}.png'
         else:
-            filename = f'preferential_attachment_analysis_{int(time.time())}.png'
+            filename = f'preferential_attachment_analysis_{"{:.5f}".format(time.time())}.png'
         plt.savefig(osp.join(PICTURE_PATH, filename))
         return filename
 
@@ -372,8 +413,17 @@ if __name__ == '__main__':
     # analyzer.plot_degree_distribution_loglog(G, normalized=False)
 
     _, G = generate_graphs(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles)
-    delta_k_data = analyzer.detect_preferential_attachment(G, average=True)
-    analyzer.visualize_preferential_attachment(delta_k_data[-10])
+    # new_attachment_by_degree_data = analyzer.detect_preferential_attachment(G)
+    # for i in range(0, len(new_attachment_by_degree_data)):
+    #     try:
+    #         analyzer.visualize_preferential_attachment(new_attachment_by_degree_data[i])
+    #     except ValueError as e:
+    #         print(str(e) + f' {i}')
+
+    delta_k_data = analyzer.get_degree_increase(G)
+    for i in range(0, len(delta_k_data)):
+        analyzer.visualize_degree_increase(delta_k_data[i])
+
     # sub_G = analyzer.filter_graph_by_rank(G, {'Professor', "Associate Professor"})
     # relative_weight = analyzer.get_relative_colab_weight(sub_G, G)
     # print(relative_weight[0])  # num of partners / total num of partners
