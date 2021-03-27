@@ -93,19 +93,6 @@ class Analyzer:
                         excellence[k] += 1
         return excellence
 
-    def _get_names_in_rank(cls, rank_str: str) -> set:
-        """
-        return the names in a particular rank(position)
-        :return: a set of faculty names
-        """
-        names = set()
-        for index, row in cls.auth_name_data.iterrows():
-            if row['Position'] == rank_str:
-                names.add(row['Faculty'])
-        if len(names) == 0:
-            raise ValueError(f'Unexpected Rank Name {rank_str} Encountered!')
-        return names
-
     @classmethod
     def filter_graph_by_names(cls, source_graphs: Union[nx.Graph, List[nx.Graph]],
                               faculty_names: Union[Set[str], List[str]]) -> Union[nx.Graph, List[nx.Graph]]:
@@ -134,8 +121,9 @@ class Analyzer:
         if type(ranks) is not set:
             ranks = set(ranks)
         faculty_names = set()
-        for rank in ranks:
-            faculty_names.update(self._get_names_in_rank(rank_str=rank))
+        for name, attribute in source_graphs[-1].nodes(data=True):
+            if attribute["Position"] in ranks:
+                faculty_names.add(name)
         if type(source_graphs) is list:
             return [self._get_subgraph(source_graph=g, node_names=faculty_names) for g in source_graphs]
         else:
@@ -211,7 +199,7 @@ class Analyzer:
         if name is not None:
             filename = f'{name}.png'
         else:
-            filename = f'degree_distribution_his_{int(time.time())}.png'
+            filename = f'degree_distribution_his_{"{:.5f}".format(time.time())}.png'
         plt.savefig(osp.join(PICTURE_PATH, filename))
         return filename
 
@@ -242,7 +230,7 @@ class Analyzer:
         if name is not None:
             filename = f'{name}.png'
         else:
-            filename = f'degree_distribution_loglog_{int(time.time())}.png'
+            filename = f'degree_distribution_loglog_{"{:.5f}".format(time.time())}.png'
         plt.savefig(osp.join(PICTURE_PATH, filename))
         return filename
 
@@ -279,9 +267,104 @@ class Analyzer:
             eigenvector_centrality=self._sort_centrality(eig_cen),
         )
 
-    def detect_preferential_attachment(self, graphs: List[nx.Graph]):
-        # TODO: use formulas presented in W5 slides
-        pass
+    @staticmethod
+    def get_degree_increase(graphs: List[nx.Graph]):
+        ptr = 0
+        length = len(graphs)
+        delta_degrees = []
+        while ptr <= length - 2:
+            current_graph = graphs[ptr]
+            next_graph = graphs[ptr + 1]
+
+            delta_degree = dict()
+            for node, degree in current_graph.degree():
+                if degree not in delta_degree:
+                    delta_degree[degree] = [next_graph.degree(node) - degree]
+                else:
+                    delta_degree[degree].append(next_graph.degree(node) - degree)
+
+            delta_degrees.append(delta_degree)
+
+            ptr += 1
+
+        return delta_degrees
+
+    @staticmethod
+    def detect_preferential_attachment(graphs: List[nx.Graph], average=False):
+        ptr = 0
+        length = len(graphs)
+        delta_degrees = []
+        while ptr <= length - 2:
+            current_graph = graphs[ptr]
+            next_graph = graphs[ptr + 1]
+
+            delta_degree = dict()
+            for node, degree in current_graph.degree():
+                increased_degree = next_graph.degree(node)
+                if degree == 0 and increased_degree != 0:  # this is a newly joined node, check its adj
+                    for connected_node in list(next_graph[node].keys()):
+                        connected_node_original_degee = current_graph.degree(connected_node)
+                        if connected_node_original_degee not in delta_degree:
+                            delta_degree[connected_node_original_degee] = 1
+                        else:
+                            delta_degree[connected_node_original_degee] += 1
+
+            delta_degrees.append(delta_degree)
+
+            ptr += 1
+
+        return delta_degrees
+
+    @staticmethod
+    def visualize_degree_increase(delta_degree_dist: dict, name=None):
+        fig, ax = plt.subplots()
+        y_data = []
+        x_data = list(range(0, max(delta_degree_dist.keys()) + 1))
+        for i in x_data:
+            if i in delta_degree_dist:
+                y_data.append(delta_degree_dist[i])
+            else:
+                y_data.append([0])
+
+        ax.boxplot(y_data, showmeans=True)
+        plt.xticks(list(range(1, max(delta_degree_dist.keys()) + 2)), x_data)
+
+        plt.xlabel("Degree")
+        plt.ylabel("Delta Degree / Delta Time")
+        plt.title("Degree Increase Analysis")
+        if name is not None:
+            filename = f'{name}.png'
+        else:
+            filename = f'degree_increase_analysis_{"{:.5f}".format(time.time())}.png'
+        plt.savefig(osp.join(PICTURE_PATH, filename))
+        return filename
+
+    @staticmethod
+    def visualize_preferential_attachment(delta_degree_dist: dict, name=None):
+        if not delta_degree_dist:
+            raise ValueError('No New Nodes Joint The Collab Graph In That Year')
+        fig, ax = plt.subplots()
+        y_data = []
+        x_data = list(range(0, max(delta_degree_dist.keys()) + 1))
+        for i in x_data:
+            if i in delta_degree_dist:
+                y_data.append(delta_degree_dist[i])
+            else:
+                y_data.append(0)
+
+        ax.scatter(x_data, y_data)
+        plt.xticks(x_data)
+        plt.yticks(range(0, max(y_data) + 2))
+
+        plt.xlabel("Degree")
+        plt.ylabel("Number Of New Comers Attached")
+        plt.title("Preferential Attachment Analysis")
+        if name is not None:
+            filename = f'{name}.png'
+        else:
+            filename = f'preferential_attachment_analysis_{"{:.5f}".format(time.time())}.png'
+        plt.savefig(osp.join(PICTURE_PATH, filename))
+        return filename
 
     @staticmethod
     def get_colab_properties(graphs: List[nx.Graph]):
@@ -305,13 +388,45 @@ class Analyzer:
                                                 in Counter(total_venues).items()], key=lambda x: x[1], reverse=True))
         return total_num_of_partners, total_num_of_papers, total_num_of_venues, most_frequent_venues
 
+    @classmethod
+    def get_relative_colab_weight(cls, sub_graphs: List[nx.Graph], complete_graphs: List[nx.Graph]):
+        """
+        Given a list of sub-graphs and complete graphs, return the weight of sub-graphs
+         in complete graphs on multiple collaboration related properties
+        :param complete_graphs:
+        :param sub_graphs:
+        :return: in sequence: relative number of partners, relative number of collab papers,
+         relative number of published venues
+        """
+        sub_graphs_colab_properties = cls.get_colab_properties(sub_graphs)
+        complete_graphs_colab_properties = cls.get_colab_properties(complete_graphs)
+
+        return [[sub / total for sub, total in zip(sub_graphs_colab_properties[i],
+                                                   complete_graphs_colab_properties[i])] for i in range(0, 3)]
+
 
 if __name__ == '__main__':
     analyzer = Analyzer()
-    G = generate_graph(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles)
-    analyzer.plot_degree_distribution_hist(G)
-    analyzer.plot_degree_distribution_loglog(G, normalized=False)
-    # _, G = generate_graphs(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles)
+
+    # G = generate_graph(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles)
+    # analyzer.plot_degree_distribution_hist(G)
+    # analyzer.plot_degree_distribution_loglog(G, normalized=False)
+
+    _, G = generate_graphs(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles)
+    # new_attachment_by_degree_data = analyzer.detect_preferential_attachment(G)
+    # for i in range(0, len(new_attachment_by_degree_data)):
+    #     try:
+    #         analyzer.visualize_preferential_attachment(new_attachment_by_degree_data[i])
+    #     except ValueError as e:
+    #         print(str(e) + f' {i}')
+
+    delta_k_data = analyzer.get_degree_increase(G)
+    for i in range(0, len(delta_k_data)):
+        analyzer.visualize_degree_increase(delta_k_data[i])
+
+    # sub_G = analyzer.filter_graph_by_rank(G, {'Professor', "Associate Professor"})
+    # relative_weight = analyzer.get_relative_colab_weight(sub_G, G)
+    # print(relative_weight[0])  # num of partners / total num of partners
     # betweenness_centrality = analyzer.analyze_centrality_of_main_component(G)["betweenness_centrality"]
     # print(betweenness_centrality)
     # analyzer.get_colab_properties(graphs=G)
