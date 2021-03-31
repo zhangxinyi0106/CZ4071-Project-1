@@ -3,6 +3,9 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 import pandas as pd
+from preprocessing import *
+from faculty import *
+import threading
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -305,9 +308,9 @@ class propertyDialog(object):
 class analyzeDialog(object):
     def setupUi(self, Form, i):
         Form.setObjectName("Form")
-        Form.resize(814, 615)
+        Form.resize(1014, 615)
         self.summary = QtWidgets.QLabel(Form)
-        self.summary.setGeometry(QtCore.QRect(30, 50, 47, 13))
+        self.summary.setGeometry(QtCore.QRect(30, 46, 77, 23))
         self.summary.setObjectName("summary")
         self.layoutWidget = QtWidgets.QWidget(Form)
         self.layoutWidget.setGeometry(QtCore.QRect(70, 560, 671, 25))
@@ -337,7 +340,9 @@ class analyzeDialog(object):
         self.label_2 = QtWidgets.QLabel(Form)
         self.label_2.setGeometry(QtCore.QRect(20, 80, 301, 210))
         self.label_2.setFrameShape(QtWidgets.QFrame.Panel)
+        self.label_2.setAlignment(QtCore.Qt.AlignLeading | QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
         self.label_2.setObjectName("label_2")
+        self.label_2.setIndent(2)
 
         self.retranslateUi(Form, i)
         self.ok.clicked.connect(Form.myWindow)
@@ -361,13 +366,16 @@ class analyzeDialog(object):
         else:
             self.label.setGeometry(QtCore.QRect(380, 50, 47, 13))
             self.tableView = QtWidgets.QTableWidget(Form)
-            self.tableView.setGeometry(QtCore.QRect(370, 80, 351, 421))
+            self.tableView.setGeometry(QtCore.QRect(370, 80, 601, 421))
+            self.tableView.setSizeAdjustPolicy(QtWidgets.QAbstractScrollArea.AdjustToContentsOnFirstShow)
+            self.tableView.setVerticalScrollMode(QtWidgets.QAbstractItemView.ScrollPerPixel)
+            self.tableView.setHorizontalScrollMode(QtWidgets.QAbstractItemView.ScrollPerPixel)
             self.tableView.setObjectName("tableView")
-            self.summary.setText(_translate("Form", "summary"))
+            self.summary.setText(_translate("Form", "Summary"))
             self.label.setText(_translate("Form", "Table"))
             if i==1:
-                self.tableView.setColumnCount(1)
-                self.tableView.setRowCount(4)
+                self.tableView.setColumnCount(21)
+                self.tableView.setRowCount(7)
 
                 #self.tableView.setItem(1, 1, QTableWidgetItem("string"))
                 self.checkbox1 = QtWidgets.QCheckBox(Form)
@@ -385,12 +393,12 @@ class analyzeDialog(object):
 
                 self.submit = QtWidgets.QPushButton(Form)
                 self.submit.setObjectName("submit")
-                self.submit.setText(_translate("Form", "submit(Chose Exactly two of them)"))
+                self.submit.setText(_translate("Form", "submit"))
                 self.submit.setGeometry(QtCore.QRect(20, 500, 300, 30))
                 self.submit.clicked.connect(self.checkstatus)
             elif i==2:
-                self.tableView.setColumnCount(1)
-                self.tableView.setRowCount(4)
+                self.tableView.setColumnCount(21)
+                self.tableView.setRowCount(7)
                 self.tableView.setHorizontalHeaderLabels(["Data"])
                 self.tableView.setVerticalHeaderLabels(
                     ["num of paper", "top conference", "top prof areas", "average centrality score"])
@@ -398,8 +406,8 @@ class analyzeDialog(object):
                 for i in range(4):
                     self.tableView.setItem(1, i - 1, QTableWidgetItem(str(data[i])))
             else:
-                self.tableView.setColumnCount(1)
-                self.tableView.setRowCount(4)
+                self.tableView.setColumnCount(21)
+                self.tableView.setRowCount(7)
 
                 # self.tableView.setItem(1, 1, QTableWidgetItem("string"))
                 self.checkbox1 = QtWidgets.QCheckBox(Form)
@@ -432,14 +440,48 @@ class analyzeDialog(object):
             exec("""if self.checkbox{}.isChecked():
             ret.append(self.checkbox{}.text())""".format(i, i))
         print(ret)
-        if len(ret)==2:
-            self.tableView.setHorizontalHeaderLabels(["Data"])
+        if len(ret)>=1:
+            self.tableView.setHorizontalHeaderLabels(["2000", "2001", "2002", "2003", "2004",
+                                                      "2005", "2006", "2007", "2008", "2009",
+                                                      "2010", "2011", "2012", "2013", "2014",
+                                                      "2015", "2016", "2017", "2018", "2019", "2020"]
+                                                     )
             self.tableView.setVerticalHeaderLabels(
-                ["num of paper", "top conference", "top prof areas", "average centrality score"])
+                ["number of partners", "total number of collab papers",
+                 "total number of published venues", "relative number of partners",
+                 "relative number of collab papers", "relative number of published venues",
+                 "most frequent venues"]
+            )
             #Call API to get data
-            data=[1,2,3,4]
-            for i in range(4):
-                self.tableView.setItem(1, i-1, QTableWidgetItem(str(data[i])))
+            i=1
+            port = get_free_port()
+            t = threading.Thread(target=self.callApi, args=(i,ret,port,), name='function')
+            t.start()
+            QDesktopServices.openUrl(QUrl('http://127.0.0.1:' + str(port) + '/'))
+
+
+
+    def callApi(self, i, ret, p):
+        print("if the port refused to connect, please wait for the server to be ready and reload.")
+        if i==1:
+            analyzer = Analyzer()
+            T, G = generate_graphs(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles)
+            subgraphs = analyzer.filter_graph_by_rank(G, ret)
+            total_num_of_partners, total_num_of_papers, \
+            total_num_of_venues, most_frequent_venues \
+                = analyzer.get_colab_properties(graphs=G)
+            relative_weight = analyzer.get_relative_colab_weight(subgraphs, G)
+            print(relative_weight[0])
+            for n in range(21):
+                self.tableView.setItem(0, n, QTableWidgetItem(str(total_num_of_partners[n])))
+                self.tableView.setItem(1, n, QTableWidgetItem(str(total_num_of_papers[n]  )))
+                self.tableView.setItem(2, n, QTableWidgetItem(str(total_num_of_venues[n]  )))
+                self.tableView.setItem(3, n, QTableWidgetItem(str("{:.5f}".format(relative_weight[0][n]))))
+                self.tableView.setItem(4, n, QTableWidgetItem(str("{:.5f}".format(relative_weight[1][n]))))
+                self.tableView.setItem(5, n, QTableWidgetItem(str("{:.5f}".format(relative_weight[2][n]))))
+                self.tableView.setItem(6, n, QTableWidgetItem(str(most_frequent_venues[n] )))
+            visualize_graphs(tags=T, graphs=subgraphs, port=p)
+
 
 
 
