@@ -121,9 +121,49 @@ class Analyzer:
         if type(ranks) is not set:
             ranks = set(ranks)
         faculty_names = set()
-        for name, attribute in source_graphs[-1].nodes(data=True):
+        nodes_from_graph = source_graphs[-1] if (type(source_graphs) is list) else source_graphs
+        for name, attribute in nodes_from_graph.nodes(data=True):
             if attribute["Position"] in ranks:
                 faculty_names.add(name)
+        if type(source_graphs) is list:
+            return [self._get_subgraph(source_graph=g, node_names=faculty_names) for g in source_graphs]
+        else:
+            return self._get_subgraph(source_graphs, faculty_names)
+
+    def filter_graph_by_area(self, source_graphs: Union[nx.Graph, List[nx.Graph]],
+                             areas: Union[Set[str], List[str]]) -> Union[nx.Graph, List[nx.Graph]]:
+        """
+        Get subgraph(s) that filter the nodes with the designated areas
+        """
+        if type(areas) is not set:
+            areas = set(areas)
+        faculty_names = set()
+        nodes_from_graph = source_graphs[-1] if (type(source_graphs) is list) else source_graphs
+        for name, attribute in nodes_from_graph.nodes(data=True):
+            if attribute["Area"] in areas:
+                faculty_names.add(name)
+        if type(source_graphs) is list:
+            return [self._get_subgraph(source_graph=g, node_names=faculty_names) for g in source_graphs]
+        else:
+            return self._get_subgraph(source_graphs, faculty_names)
+
+    def filter_graph_by_managerole(self, source_graphs: Union[nx.Graph, List[nx.Graph]],
+                             is_management: bool) -> Union[nx.Graph, List[nx.Graph]]:
+        """
+        Get subgraph(s) that filter the nodes for managerial role faculty
+        :param source_graphs: the original complete graph(s)
+        :param is_management: specify the subgraoh would only contain management role faculty or not
+        :return: networkx graph or list of graphs, depending on the number or source graph passed
+        """
+        faculty_names = set()
+        nodes_from_graph = source_graphs[-1] if (type(source_graphs) is list) else source_graphs
+        for name, attribute in nodes_from_graph.nodes(data=True):
+            if is_management:
+                if attribute["Management"] == 'Y':
+                    faculty_names.add(name)
+            else:
+                if attribute["Management"] == 'N':
+                    faculty_names.add(name)
         if type(source_graphs) is list:
             return [self._get_subgraph(source_graph=g, node_names=faculty_names) for g in source_graphs]
         else:
@@ -407,12 +447,20 @@ class Analyzer:
 
 if __name__ == '__main__':
     analyzer = Analyzer()
+    G = generate_graph(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles, by_year=2021)
+    G_test = analyzer.filter_graph_by_area(G, ['AI/ML', 'Computer Vision'])
+    visualize_graph(G_test, port=get_free_port())
+    # for i in range(1999, 2021):
+    #     G = generate_graph(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles, by_year=i)
+    #     print("year: ", i)
+    #     print("average degree:", analyzer.get_avg_degree(G))
+    #     print("diameter:", analyzer.get_largest_component_diameter(G))
+    #     print("clustering coeff:", analyzer.get_clustering_coeff(G))
 
-    # G = generate_graph(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles)
     # analyzer.plot_degree_distribution_hist(G)
-    # analyzer.plot_degree_distribution_loglog(G, normalized=False)
-
-    _, G = generate_graphs(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles)
+    # filename = analyzer.plot_degree_distribution_loglog(G, normalized=False)
+    # print("filename:", filename)
+    # _, G = generate_graphs(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles)
     # new_attachment_by_degree_data = analyzer.detect_preferential_attachment(G)
     # for i in range(0, len(new_attachment_by_degree_data)):
     #     try:
@@ -420,9 +468,9 @@ if __name__ == '__main__':
     #     except ValueError as e:
     #         print(str(e) + f' {i}')
 
-    delta_k_data = analyzer.get_degree_increase(G)
-    for i in range(0, len(delta_k_data)):
-        analyzer.visualize_degree_increase(delta_k_data[i])
+    # delta_k_data = analyzer.get_degree_increase(G)
+    # for i in range(0, len(delta_k_data)):
+    #     analyzer.visualize_degree_increase(delta_k_data[i])
 
     # sub_G = analyzer.filter_graph_by_rank(G, {'Professor', "Associate Professor"})
     # relative_weight = analyzer.get_relative_colab_weight(sub_G, G)

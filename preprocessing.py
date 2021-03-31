@@ -350,7 +350,11 @@ def _prepare_figure(graph: nx.Graph) -> go.Figure:
         for prop in adjacencies[1].values():
             related_papers += prop['weight']
         node_total_edge_weight.append(related_papers)
-        properties = '<br />'.join(['%s: %s' % (k, v) for (k, v) in graph.nodes[adjacencies[0]].items()])
+        node_property_display = []
+        for (k, v) in graph.nodes[adjacencies[0]].items():
+            if k != 'Colab_Venues':
+                node_property_display.append('%s: %s' % (k, v))
+        properties = '<br />'.join(node_property_display)
         node_text.append(
             f'{adjacencies[0]}<br />Degree: {len(adjacencies[1].keys())}<br />'
             f'Related Papers: {related_papers}<br />{properties}')
