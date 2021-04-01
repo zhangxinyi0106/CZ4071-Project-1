@@ -39,7 +39,7 @@ class Ui_MainWindow(object):
         self.comboBox2 = QtWidgets.QComboBox(self.centralwidget)
         self.comboBox2.setGeometry(QtCore.QRect(50, 290, 611, 51))
         self.comboBox2.setObjectName("comboBox2")
-        for i in range(4):
+        for i in range(5):
             self.comboBox2.addItem("")
         self.comboBox3 = QtWidgets.QComboBox(self.centralwidget)
         self.comboBox3.setGeometry(QtCore.QRect(50, 290, 611, 51))
@@ -78,7 +78,7 @@ class Ui_MainWindow(object):
         self.pushButton.setText(_translate("MainWindow", "Select faculty members"))
         self.pushButton2.setText(_translate("MainWindow", "Add new faculty"))
         selectYearText = ["Select one", "show network until year 2000"]
-        questionList = ["Select one", "Average Degree", "Clustering coefficient", "Diameter"]
+        questionList = ["Select one", "Degree distribution", "Average Degree", "Clustering coefficient", "Diameter"]
         options = ["Select one", "collaboration between faculty of different ranks",
                    "collaboration between faculty holding or held management position and non-management faculty",
                    "collaboration between faculty of different areas in computer science",
@@ -87,7 +87,7 @@ class Ui_MainWindow(object):
             selectYearText.append("show network until year "+str(i))
         for i in range(23):
             self.comboBox.setItemText(i, _translate("Interface", selectYearText[i]))
-        for i in range(4):
+        for i in range(5):
             self.comboBox2.setItemText(i, _translate("Interface", questionList[i]))
         for i in range(5):
             self.comboBox3.setItemText(i, _translate("Interface", options[i]))
@@ -178,14 +178,6 @@ class checkbox_Dialog(object):
         self.buttonBox.accepted.connect(Dialog.falcultyMem)
         self.buttonBox.accepted.connect(self.findState)
         self.buttonBox.rejected.connect(Dialog.myWindow)
-        # self.okButton = QtWidgets.QPushButton(Dialog)
-        # self.okButton.setGeometry(QtCore.QRect(230, 40, 71, 31))
-        # font = QtGui.QFont()
-        # font.setPointSize(14)
-        # self.okButton.setFont(font)
-        # self.okButton.setObjectName("okButton")
-        # self.okButton.clicked.connect(self.findState)
-        # self.okButton.clicked.connect(Dialog.myWindow)
         for i in range(1,18):
             exec("""self.horizontalLayout_{} = QtWidgets.QHBoxLayout()
 self.horizontalLayout_{}.setObjectName("horizontalLayout_{}")
@@ -231,10 +223,16 @@ self.gridLayout.addLayout(self.horizontalLayout_{}, {}, 0, 1, 1)
             exec("""if self.checkbox_{}.isChecked():
     ret.append(self.checkbox_{}.text())""".format(i, i))
         print(ret)
-
-        #connected with API to show the subgraph
-        QDesktopServices.openUrl(QUrl('http://127.0.0.1:8080/'))
+        port = get_free_port()
+        t = threading.Thread(target=self.callApi, args=(ret,port), name='function')
+        t.start()
+        QDesktopServices.openUrl(QUrl('http://127.0.0.1:' + str(port) + '/'))
         return ret
+    def callApi(self,ret,p):
+        analyzer = Analyzer()
+        T, G = generate_graphs(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles)
+        subgraphs = analyzer.filter_graph_by_names(G, ret)
+        visualize_graphs(tags=T, graphs=subgraphs, port=p)
 
 class propertyDialog(object):
     def setupUi(self, Form, i):
@@ -246,12 +244,6 @@ class propertyDialog(object):
         self.graph = QtWidgets.QLabel(Form)
         self.graph.setGeometry(QtCore.QRect(470, 50, 91, 41))
         self.graph.setObjectName("graph")
-        # self.layoutWidget = QtWidgets.QWidget(Form)
-        # self.layoutWidget.setGeometry(QtCore.QRect(120, 480, 431, 25))
-        # self.layoutWidget.setObjectName("layoutWidget")
-        # self.horizontalLayout = QtWidgets.QHBoxLayout(self.layoutWidget)
-        # self.horizontalLayout.setContentsMargins(0, 0, 0, 0)
-        # self.horizontalLayout.setObjectName("horizontalLayout")
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -281,47 +273,60 @@ class propertyDialog(object):
         self.label_2.setFrameShape(QtWidgets.QFrame.StyledPanel)
         self.label_2.setText("")
         analyzer = Analyzer()
-        if i==1:
-            text = ""
-            for i in range(1999, 2021):
-                G = generate_graph(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles,
-                                   by_year=i+1)
-                t = "Average degree for year " + str(i) + ": "\
-                    + str("{:.7f}".format(analyzer.get_avg_degree(G))) + "\n"
-                text += t
-            #self.label.setText("Average degree: " + str(analyzer.get_avg_degree(G)))
-            self.label.setText(text)
-            self.label_2.setPixmap(QtGui.QPixmap("pictures/degree_distribution_his_1617120321.50181.png"))
-        elif i==2:
-            text = ""
-            for i in range(1999, 2021):
-                G = generate_graph(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles,
-                                   by_year=i + 1)
-                t = "Clustering coefficient for year " + str(i) + ": " \
-                    + str("{:.7f}".format(analyzer.get_clustering_coeff(G))) + "\n"
-                text += t
-            #self.label.setText("Clustering coefficient: " + str(analyzer.get_clustering_coeff(G)))
-            self.label.setText(text)
-            self.label_2.setPixmap(QtGui.QPixmap("pictures/degree_distribution_his_1617120321.50181.png"))
-        elif i==3:
-            text = ""
-            for i in range(1999, 2021):
-                G = generate_graph(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles,
-                                   by_year=i + 1)
-                t = "Diameter for year " + str(i) + ": " \
-                    + str(analyzer.get_largest_component_diameter(G)) + "\n"
-                text += t
-            #self.label.setText("Diameter: " + str(analyzer.get_largest_component_diameter(G)))
-            self.label.setText(text)
-            self.label_2.setPixmap(QtGui.QPixmap("pictures/degree_distribution_his_1617120321.50181.png"))
+        if i == 1:
+            G = generate_graph(name_data=analyzer.auth_name_data,
+                               profile_data=analyzer.auth_profiles,
+                               by_year=2020)
+            self.summary.setText(_translate("Form", "degree distribution histogram"))
+            self.summary.setGeometry(QtCore.QRect(50, 50, 401, 31))
+            self.graph.setText(_translate("Form", "degree distribution loglog"))
+            self.graph.setGeometry(QtCore.QRect(470, 50, 401, 41))
+            self.label.setScaledContents(True)
+            self.label_2.setScaledContents(True)
+            self.label.setPixmap(QtGui.QPixmap("pictures/"
+                                               + analyzer.plot_degree_distribution_hist(G)))
+            self.label_2.setPixmap(QtGui.QPixmap("pictures/"
+                                                 + analyzer.plot_degree_distribution_loglog(G,
+                                                                                            normalized=False)))
+
         else:
-            self.label.setText(_translate("Form", "Nothing"))
-            self.label_2.setPixmap(QtGui.QPixmap("pictures/graph6.png"))
-        self.label_2.setScaledContents(True)
-        self.label_2.setTextInteractionFlags(QtCore.Qt.LinksAccessibleByMouse)
-        self.label_2.setObjectName("label_2")
-        self.summary.setText(_translate("Form", "Summary"))
-        self.graph.setText(_translate("Form", "Graph"))
+            Tag, Graphs = generate_graphs(name_data=analyzer.auth_name_data,
+                                          profile_data=analyzer.auth_profiles)
+            if i==2:
+                text = ""
+                for i in range(2000, 2021):
+                    t = "Average degree for year " + str(i) + ": "\
+                        + str("{:.7f}".format(analyzer.get_avg_degree(Graphs[i-2000]))) + "\n"
+                    text += t
+                self.label.setText(text)
+                self.label_2.setPixmap(QtGui.QPixmap("pictures/"
+                                                     + analyzer.plot_avg_degree_hist(Graphs, Tag)))
+            elif i==3:
+                text = ""
+                for i in range(2000, 2021):
+                    t = "Clustering coefficient for year " + str(i) + ": " \
+                        + str("{:.7f}".format(analyzer.get_clustering_coeff(Graphs[i-2000]))) + "\n"
+                    text += t
+                self.label.setText(text)
+                self.label_2.setPixmap(QtGui.QPixmap("pictures/"
+                                                     + analyzer.plot_avg_clust_coeff_hist(Graphs, Tag)))
+            elif i==4:
+                text = ""
+                for i in range(2000, 2021):
+                    t = "Diameter for year " + str(i) + ": " \
+                        + str(analyzer.get_largest_component_diameter(Graphs[i-2000])) + "\n"
+                    text += t
+                self.label.setText(text)
+                self.label_2.setPixmap(QtGui.QPixmap("pictures/"
+                                                     + analyzer.plot_diameter_hist(Graphs, Tag)))
+            else:
+                self.label.setText(_translate("Form", "Nothing"))
+                self.label_2.setPixmap(QtGui.QPixmap("pictures/no_image_available.png"))
+            self.label_2.setScaledContents(True)
+            self.label_2.setTextInteractionFlags(QtCore.Qt.LinksAccessibleByMouse)
+            self.label_2.setObjectName("label_2")
+            self.summary.setText(_translate("Form", "Summary"))
+            self.graph.setText(_translate("Form", "Graph"))
 
 class analyzeDialog(object):
     def setupUi(self, Form, i):
@@ -361,6 +366,8 @@ class analyzeDialog(object):
         self.label_2.setAlignment(QtCore.Qt.AlignLeading | QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
         self.label_2.setObjectName("label_2")
         self.label_2.setIndent(2)
+        self.label_2.setScaledContents(True)
+        self.label_2.setPixmap(QtGui.QPixmap("pictures/insts_collab.png"))
 
         self.retranslateUi(Form, i)
         self.ok.clicked.connect(Form.myWindow)
@@ -531,7 +538,7 @@ class facultyMemDialog(object):
         self.label.setTextInteractionFlags(QtCore.Qt.LinksAccessibleByMouse)
         self.label.setObjectName("label_2")
         self.property = QtWidgets.QComboBox(Form)
-        self.property.setGeometry(QtCore.QRect(40, 240, 221, 22))
+        self.property.setGeometry(QtCore.QRect(10, 40, 271, 42))
         self.property.setObjectName("property")
         self.property.addItem("")
         self.property.addItem("")
