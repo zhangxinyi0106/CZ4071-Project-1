@@ -215,6 +215,68 @@ class Analyzer:
         clust_coeff = nx.average_clustering(graph)
         return clust_coeff
 
+    @classmethod
+    def plot_avg_degree_hist(cls, graphs: List[nx.Graph], tags: List[str], name=None) -> str:
+        """
+        Plot average degree by year
+        :param graphs:
+        :param tags: year in sequence
+        :param name:
+        :return: file name of the saved picture
+        """
+        fig, ax = plt.subplots()
+        y = [cls.get_avg_degree(graph) for graph in graphs]
+        x = range(len(tags))
+        return cls._plot_line(x, y, tags, "Year", "Average Node Degree", "Average Node Degree by Year",
+                              name if name is not None else f'avg_degree_plot_{"{:.5f}".format(time.time())}',
+                              ax, plt)
+
+    @classmethod
+    def plot_avg_clust_coeff_hist(cls, graphs: List[nx.Graph], tags: List[str], name=None) -> str:
+        """
+        Plot average clustering coefficient by year
+        :param graphs:
+        :param tags: year in sequence
+        :param name:
+        :return: file name of the saved picture
+        """
+        fig, ax = plt.subplots()
+        y = [cls.get_clustering_coeff(graph) for graph in graphs]
+        x = range(len(tags))
+        return cls._plot_line(x, y, tags, "Year", "Average Clustering Coefficient",
+                              "Average Clustering Coefficient by Year",
+                              name if name is not None else f'avg_clust_coeff_{"{:.5f}".format(time.time())}',
+                              ax, plt)
+
+    @classmethod
+    def plot_diameter_hist(cls, graphs: List[nx.Graph], tags: List[str], name=None) -> str:
+        """
+        Plot the diameter of the largest component of the graph by year
+        :param graphs:
+        :param tags: year in sequence
+        :param name:
+        :return: file name of the saved picture
+        """
+        fig, ax = plt.subplots()
+        y = [cls.get_largest_component_diameter(graph) for graph in graphs]
+        x = range(len(tags))
+        return cls._plot_line(x, y, tags, "Year", "Diameter (Largest Component)",
+                              "Diameter (Largest Component) by Year",
+                              name if name is not None else f'diameter_{"{:.5f}".format(time.time())}',
+                              ax, plt)
+
+    @staticmethod
+    def _plot_line(x, y, x_ticks, x_label, y_label, title, figname, ax, plt):
+        plt.xlabel(x_label)
+        plt.ylabel(y_label)
+        plt.title(title)
+        ax.set_xticks(x)
+        ax.set_xticklabels(x_ticks, rotation='vertical')
+        ax.plot(x, y)
+        filename = f'{figname}.png'
+        plt.savefig(osp.join(PICTURE_PATH, filename))
+        return filename
+
     @staticmethod
     def plot_degree_distribution_hist(g: nx.Graph, name=None) -> str:
         """
@@ -447,9 +509,9 @@ class Analyzer:
 
 if __name__ == '__main__':
     analyzer = Analyzer()
-    G = generate_graph(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles, by_year=2021)
-    G_test = analyzer.filter_graph_by_area(G, ['AI/ML', 'Computer Vision'])
-    visualize_graph(G_test, port=get_free_port())
+    # G = generate_graph(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles, by_year=2021)
+    # G_test = analyzer.filter_graph_by_area(G, ['AI/ML', 'Computer Vision'])
+    # visualize_graph(G_test, port=get_free_port())
     # for i in range(1999, 2021):
     #     G = generate_graph(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles, by_year=i)
     #     print("year: ", i)
@@ -460,7 +522,10 @@ if __name__ == '__main__':
     # analyzer.plot_degree_distribution_hist(G)
     # filename = analyzer.plot_degree_distribution_loglog(G, normalized=False)
     # print("filename:", filename)
-    # _, G = generate_graphs(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles)
+    T, G = generate_graphs(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles)
+    analyzer.plot_avg_degree_hist(G, T)
+    analyzer.plot_avg_clust_coeff_hist(G, T)
+    analyzer.plot_diameter_hist(G, T)
     # new_attachment_by_degree_data = analyzer.detect_preferential_attachment(G)
     # for i in range(0, len(new_attachment_by_degree_data)):
     #     try:
