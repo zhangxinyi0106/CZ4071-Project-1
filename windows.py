@@ -94,7 +94,6 @@ class Ui_MainWindow(object):
         #file = pd.read_excel("data/Faculty.xlsx")
         #facultyList = file["Faculty"]
 
-
 class Ui_Dialog(object):
     def setupUi(self, Dialog2):
         Dialog2.setObjectName("Dialog2")
@@ -150,7 +149,6 @@ class Ui_Dialog(object):
         self.label_4.setText(_translate("Dialog2", "Evolvement of network since year 2000"))
         self.label.setText(_translate("Dialog2", "select year"))
         self.pushButton.setText(_translate("Dialog2", "Load graph"))
-
 
 class checkbox_Dialog(object):
 
@@ -516,8 +514,6 @@ class analyzeDialog(object):
         if self.submitClicked:
             self.label_2.setScaledContents(True)
             self.label_2.setPixmap(QtGui.QPixmap("pictures/" + self.degree_inc_pic_names[i-1]))
-
-
 
 class facultyMemDialog(object):
     def setupUi(self, Form):
