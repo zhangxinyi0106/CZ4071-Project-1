@@ -39,7 +39,7 @@ class Ui_MainWindow(object):
         self.comboBox2 = QtWidgets.QComboBox(self.centralwidget)
         self.comboBox2.setGeometry(QtCore.QRect(50, 290, 611, 51))
         self.comboBox2.setObjectName("comboBox2")
-        for i in range(7):
+        for i in range(4):
             self.comboBox2.addItem("")
         self.comboBox3 = QtWidgets.QComboBox(self.centralwidget)
         self.comboBox3.setGeometry(QtCore.QRect(50, 290, 611, 51))
@@ -78,7 +78,7 @@ class Ui_MainWindow(object):
         self.pushButton.setText(_translate("MainWindow", "Select faculty members"))
         self.pushButton2.setText(_translate("MainWindow", "Add new faculty"))
         selectYearText = ["Select one", "show network until year 2000"]
-        questionList = ["Select one", "Number of Nodes", "Number of Links", "Average Degree", "Clustering coefficient", "Diameter", "Number of papers"]
+        questionList = ["Select one", "Average Degree", "Clustering coefficient", "Diameter"]
         options = ["Select one", "collaboration between faculty of different ranks",
                    "collaboration between faculty holding or held management position and non-management faculty",
                    "collaboration between faculty of different areas in computer science",
@@ -87,7 +87,7 @@ class Ui_MainWindow(object):
             selectYearText.append("show network until year "+str(i))
         for i in range(23):
             self.comboBox.setItemText(i, _translate("Interface", selectYearText[i]))
-        for i in range(7):
+        for i in range(4):
             self.comboBox2.setItemText(i, _translate("Interface", questionList[i]))
         for i in range(5):
             self.comboBox3.setItemText(i, _translate("Interface", options[i]))
@@ -241,19 +241,19 @@ self.gridLayout.addLayout(self.horizontalLayout_{}, {}, 0, 1, 1)
 class propertyDialog(object):
     def setupUi(self, Form, i):
         Form.setObjectName("Form")
-        Form.resize(704, 548)
+        Form.resize(904, 648)
         self.summary = QtWidgets.QLabel(Form)
         self.summary.setGeometry(QtCore.QRect(50, 50, 101, 31))
         self.summary.setObjectName("summary")
         self.graph = QtWidgets.QLabel(Form)
-        self.graph.setGeometry(QtCore.QRect(370, 50, 91, 41))
+        self.graph.setGeometry(QtCore.QRect(470, 50, 91, 41))
         self.graph.setObjectName("graph")
-        self.layoutWidget = QtWidgets.QWidget(Form)
-        self.layoutWidget.setGeometry(QtCore.QRect(120, 480, 431, 25))
-        self.layoutWidget.setObjectName("layoutWidget")
-        self.horizontalLayout = QtWidgets.QHBoxLayout(self.layoutWidget)
-        self.horizontalLayout.setContentsMargins(0, 0, 0, 0)
-        self.horizontalLayout.setObjectName("horizontalLayout")
+        # self.layoutWidget = QtWidgets.QWidget(Form)
+        # self.layoutWidget.setGeometry(QtCore.QRect(120, 480, 431, 25))
+        # self.layoutWidget.setObjectName("layoutWidget")
+        # self.horizontalLayout = QtWidgets.QHBoxLayout(self.layoutWidget)
+        # self.horizontalLayout.setContentsMargins(0, 0, 0, 0)
+        # self.horizontalLayout.setObjectName("horizontalLayout")
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -261,15 +261,16 @@ class propertyDialog(object):
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         self.label = QtWidgets.QLabel(Form)
-        self.label.setGeometry(QtCore.QRect(30, 90, 311, 361))
+        self.label.setGeometry(QtCore.QRect(30, 90, 411, 461))
         self.label.setFrameShape(QtWidgets.QFrame.Box)
         self.label.setObjectName("label")
         self.label_2 = QtWidgets.QLabel(Form)
-        self.buttonBox = QtWidgets.QDialogButtonBox(self.layoutWidget)
-        self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
+        self.buttonBox = QtWidgets.QDialogButtonBox(Form)
+        self.buttonBox.setGeometry(QtCore.QRect(700, 560, 116, 30))
+        #self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
         self.buttonBox.setStandardButtons(QtWidgets.QDialogButtonBox.Cancel | QtWidgets.QDialogButtonBox.Ok)
         self.buttonBox.setObjectName("buttonBox")
-        self.horizontalLayout.addWidget(self.buttonBox)
+        #self.horizontalLayout.addWidget(self.buttonBox)
         self.buttonBox.accepted.connect(Form.myWindow)
         self.buttonBox.rejected.connect(Form.myWindow)
         self.retranslateUi(Form, i)
@@ -278,39 +279,58 @@ class propertyDialog(object):
     def retranslateUi(self, Form, i):
         _translate = QtCore.QCoreApplication.translate
         Form.setWindowTitle(_translate("Form", "Form"))
-        self.label_2.setGeometry(QtCore.QRect(360, 90, 301, 361))
+        self.label_2.setGeometry(QtCore.QRect(460, 90, 401, 461))
         self.label_2.setFrameShape(QtWidgets.QFrame.StyledPanel)
         self.label_2.setText("")
+        analyzer = Analyzer()
         if i==1:
-            self.label.setText(_translate("Form", "TextLabel1"))
-            self.label_2.setPixmap(QtGui.QPixmap("pictures/graph.png"))
+            text = ""
+            for i in range(1999, 2021):
+                G = generate_graph(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles,
+                                   by_year=i+1)
+                t = "Average degree for year " + str(i) + ": "\
+                    + str("{:.7f}".format(analyzer.get_avg_degree(G))) + "\n"
+                text += t
+            #self.label.setText("Average degree: " + str(analyzer.get_avg_degree(G)))
+            self.label.setText(text)
+            self.label_2.setPixmap(QtGui.QPixmap("pictures/degree_distribution_his_1617120321.50181.png"))
         elif i==2:
-            self.label.setText(_translate("Form", "TextLabel2"))
-            self.label_2.setPixmap(QtGui.QPixmap("pictures/graph2.png"))
+            text = ""
+            for i in range(1999, 2021):
+                G = generate_graph(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles,
+                                   by_year=i + 1)
+                t = "Clustering coefficient for year " + str(i) + ": " \
+                    + str("{:.7f}".format(analyzer.get_clustering_coeff(G))) + "\n"
+                text += t
+            #self.label.setText("Clustering coefficient: " + str(analyzer.get_clustering_coeff(G)))
+            self.label.setText(text)
+            self.label_2.setPixmap(QtGui.QPixmap("pictures/degree_distribution_his_1617120321.50181.png"))
         elif i==3:
-            self.label.setText(_translate("Form", "TextLabel2"))
-            self.label_2.setPixmap(QtGui.QPixmap("pictures/graph3.png"))
-        elif i==4:
-            self.label.setText(_translate("Form", "TextLabel2"))
-            self.label_2.setPixmap(QtGui.QPixmap("pictures/graph4.png"))
-        elif i==5:
-            self.label.setText(_translate("Form", "TextLabel2"))
-            self.label_2.setPixmap(QtGui.QPixmap("pictures/graph5.png"))
+            text = ""
+            for i in range(1999, 2021):
+                G = generate_graph(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles,
+                                   by_year=i + 1)
+                t = "Diameter for year " + str(i) + ": " \
+                    + str(analyzer.get_largest_component_diameter(G)) + "\n"
+                text += t
+            #self.label.setText("Diameter: " + str(analyzer.get_largest_component_diameter(G)))
+            self.label.setText(text)
+            self.label_2.setPixmap(QtGui.QPixmap("pictures/degree_distribution_his_1617120321.50181.png"))
         else:
-            self.label.setText(_translate("Form", "TextLabel3"))
+            self.label.setText(_translate("Form", "Nothing"))
             self.label_2.setPixmap(QtGui.QPixmap("pictures/graph6.png"))
         self.label_2.setScaledContents(True)
         self.label_2.setTextInteractionFlags(QtCore.Qt.LinksAccessibleByMouse)
         self.label_2.setObjectName("label_2")
         self.summary.setText(_translate("Form", "Summary"))
-        self.graph.setText(_translate("Form", "graph"))
+        self.graph.setText(_translate("Form", "Graph"))
 
 class analyzeDialog(object):
     def setupUi(self, Form, i):
         Form.setObjectName("Form")
         Form.resize(1014, 615)
         self.summary = QtWidgets.QLabel(Form)
-        self.summary.setGeometry(QtCore.QRect(30, 46, 77, 23))
+        self.summary.setGeometry(QtCore.QRect(30, 46, 177, 23))
         self.summary.setObjectName("summary")
         self.layoutWidget = QtWidgets.QWidget(Form)
         self.layoutWidget.setGeometry(QtCore.QRect(70, 560, 671, 25))
@@ -338,7 +358,7 @@ class analyzeDialog(object):
 
         self.label.setObjectName("label")
         self.label_2 = QtWidgets.QLabel(Form)
-        self.label_2.setGeometry(QtCore.QRect(20, 80, 301, 210))
+        self.label_2.setGeometry(QtCore.QRect(20, 80, 301, 300))
         self.label_2.setFrameShape(QtWidgets.QFrame.Panel)
         self.label_2.setAlignment(QtCore.Qt.AlignLeading | QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
         self.label_2.setObjectName("label_2")
@@ -371,117 +391,131 @@ class analyzeDialog(object):
             self.tableView.setVerticalScrollMode(QtWidgets.QAbstractItemView.ScrollPerPixel)
             self.tableView.setHorizontalScrollMode(QtWidgets.QAbstractItemView.ScrollPerPixel)
             self.tableView.setObjectName("tableView")
-            self.summary.setText(_translate("Form", "Summary"))
+            self.summary.setText(_translate("Form", "Degree increase graph"))
             self.label.setText(_translate("Form", "Table"))
-            if i==1:
-                self.tableView.setColumnCount(21)
-                self.tableView.setRowCount(7)
+            self.tableView.setColumnCount(21)
+            self.tableView.setRowCount(10)
+            self.tableView.setHorizontalHeaderLabels([str(num) for num in range(2000, 2021)])
+            self.tableView.setVerticalHeaderLabels(
+                ["number of partners",               "total number of collab papers",
+                 "total number of published venues", "relative number of partners",
+                 "relative number of collab papers", "relative number of published venues",
+                 "betweenness centrality",           "closeness_centrality",
+                 "eigenvector_centrality",           "most frequent venues"]
+            )
+            self.submitClicked = False
+            selectYearText = ["Select one graph", "show graph 2000 ~ 2001"]
+            for n in range(2001, 2020):
+                selectYearText.append("show graph " + str(n) + " ~ " + str(n + 1))
+            self.comboBox = QtWidgets.QComboBox(Form)
+            self.comboBox.setGeometry(QtCore.QRect(20, 400, 311, 30))
+            self.comboBox.setObjectName("comboBox")
+            for j in range(21):
+                self.comboBox.addItem("")
+            for k in range(21):
+                self.comboBox.setItemText(k, selectYearText[k])
+            self.comboBox.currentIndexChanged.connect(self.updateGraph)
+            self.submit = QtWidgets.QPushButton(Form)
+            self.submit.setObjectName("submit")
+            self.submit.setText(_translate("Form", "submit"))
+            self.submit.setGeometry(QtCore.QRect(20, 500, 300, 30))
+            self.submit.clicked.connect(self.checkstatus)
 
-                #self.tableView.setItem(1, 1, QTableWidgetItem("string"))
+            if i==2:
                 self.checkbox1 = QtWidgets.QCheckBox(Form)
-                self.checkbox1.setGeometry(QtCore.QRect(20, 400, 120, 30))
+                self.checkbox1.setGeometry(QtCore.QRect(80, 450, 120, 30))
                 self.checkbox1.setObjectName("rank1")
-                self.checkbox1.setText(_translate("Dialog", "Professor"))
-                self.checkbox2 = QtWidgets.QCheckBox(Form)
-                self.checkbox2.setGeometry(QtCore.QRect(140, 400, 120, 30))
-                self.checkbox2.setObjectName("rank2")
-                self.checkbox2.setText(_translate("Dialog", "Assistant Professor"))
-                self.checkbox3 = QtWidgets.QCheckBox(Form)
-                self.checkbox3.setGeometry(QtCore.QRect(260, 400, 120, 30))
-                self.checkbox3.setObjectName("rank3")
-                self.checkbox3.setText(_translate("Dialog", "Lecturer"))
-
-                self.submit = QtWidgets.QPushButton(Form)
-                self.submit.setObjectName("submit")
-                self.submit.setText(_translate("Form", "submit"))
-                self.submit.setGeometry(QtCore.QRect(20, 500, 300, 30))
-                self.submit.clicked.connect(self.checkstatus)
-            elif i==2:
-                self.tableView.setColumnCount(21)
-                self.tableView.setRowCount(7)
-                self.tableView.setHorizontalHeaderLabels(["Data"])
-                self.tableView.setVerticalHeaderLabels(
-                    ["num of paper", "top conference", "top prof areas", "average centrality score"])
-                data = [1, 2, 3, 4]
-                for i in range(4):
-                    self.tableView.setItem(1, i - 1, QTableWidgetItem(str(data[i])))
+                self.checkbox1.setText(_translate("Dialog", "Management-only"))
+                self.option = 2
             else:
-                self.tableView.setColumnCount(21)
-                self.tableView.setRowCount(7)
-
-                # self.tableView.setItem(1, 1, QTableWidgetItem("string"))
+                self.names = ["Professor", "Assistant Prof", "Lecturer"] if i == 1 \
+                    else ["Machine Learning", "Computer Vision", "Artificial Intelligence"]
+                self.option = 1 if i == 1 \
+                    else 3
                 self.checkbox1 = QtWidgets.QCheckBox(Form)
-                self.checkbox1.setGeometry(QtCore.QRect(20, 400, 120, 30))
+                self.checkbox1.setGeometry(QtCore.QRect(20, 450, 120, 30))
                 self.checkbox1.setObjectName("rank1")
-                self.checkbox1.setText(_translate("Dialog", "Machine Learning"))
+                self.checkbox1.setText(_translate("Dialog", self.names[0]))
                 self.checkbox2 = QtWidgets.QCheckBox(Form)
-                self.checkbox2.setGeometry(QtCore.QRect(140, 400, 120, 30))
+                self.checkbox2.setGeometry(QtCore.QRect(140, 450, 130, 30))
                 self.checkbox2.setObjectName("rank2")
-                self.checkbox2.setText(_translate("Dialog", "Computer Vision"))
+                self.checkbox2.setText(_translate("Dialog", self.names[1]))
                 self.checkbox3 = QtWidgets.QCheckBox(Form)
-                self.checkbox3.setGeometry(QtCore.QRect(260, 400, 120, 30))
+                self.checkbox3.setGeometry(QtCore.QRect(270, 450, 120, 30))
                 self.checkbox3.setObjectName("rank3")
-                self.checkbox3.setText(_translate("Dialog", "Artificial Intelligence"))
-
-                self.submit = QtWidgets.QPushButton(Form)
-                self.submit.setObjectName("submit")
-                self.submit.setText(_translate("Form", "submit"))
-                self.submit.setGeometry(QtCore.QRect(140, 500, 60, 30))
-                self.submit.clicked.connect(self.checkstatus)
+                self.checkbox3.setText(_translate("Dialog", self.names[2]))
 
         self.ok.setText(_translate("Form", "OK"))
         self.cancel.setText(_translate("Form", "Cancel"))
 
-        #self.label_2.setText(_translate("Form", "TextLabel"))
-
     def checkstatus(self):
+        self.submitClicked = True
         ret = []
-        for i in range(1,4):
-            exec("""if self.checkbox{}.isChecked():
-            ret.append(self.checkbox{}.text())""".format(i, i))
-        print(ret)
-        if len(ret)>=1:
-            self.tableView.setHorizontalHeaderLabels(["2000", "2001", "2002", "2003", "2004",
-                                                      "2005", "2006", "2007", "2008", "2009",
-                                                      "2010", "2011", "2012", "2013", "2014",
-                                                      "2015", "2016", "2017", "2018", "2019", "2020"]
-                                                     )
-            self.tableView.setVerticalHeaderLabels(
-                ["number of partners", "total number of collab papers",
-                 "total number of published venues", "relative number of partners",
-                 "relative number of collab papers", "relative number of published venues",
-                 "most frequent venues"]
-            )
-            #Call API to get data
-            i=1
-            port = get_free_port()
-            t = threading.Thread(target=self.callApi, args=(i,ret,port,), name='function')
-            t.start()
-            QDesktopServices.openUrl(QUrl('http://127.0.0.1:' + str(port) + '/'))
+        if self.option!=2:
+            for i in range(1, 4):
+                exec("""if self.checkbox{}.isChecked():
+                        ret.append(self.checkbox{}.text())""".format(i, i))
+            print(ret)
+        else:
+            if self.checkbox1.isChecked():
+                ret.append(True)
+            else:
+                ret.append(False)
 
-
+        i = self.option
+        port = get_free_port()
+        t = threading.Thread(target=self.callApi, args=(i,ret,port,), name='function')
+        t.start()
+        QDesktopServices.openUrl(QUrl('http://127.0.0.1:' + str(port) + '/'))
 
     def callApi(self, i, ret, p):
         print("if the port refused to connect, please wait for the server to be ready and reload.")
-        if i==1:
-            analyzer = Analyzer()
-            T, G = generate_graphs(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles)
-            subgraphs = analyzer.filter_graph_by_rank(G, ret)
-            total_num_of_partners, total_num_of_papers, \
-            total_num_of_venues, most_frequent_venues \
-                = analyzer.get_colab_properties(graphs=G)
-            relative_weight = analyzer.get_relative_colab_weight(subgraphs, G)
-            print(relative_weight[0])
-            for n in range(21):
-                self.tableView.setItem(0, n, QTableWidgetItem(str(total_num_of_partners[n])))
-                self.tableView.setItem(1, n, QTableWidgetItem(str(total_num_of_papers[n]  )))
-                self.tableView.setItem(2, n, QTableWidgetItem(str(total_num_of_venues[n]  )))
-                self.tableView.setItem(3, n, QTableWidgetItem(str("{:.5f}".format(relative_weight[0][n]))))
-                self.tableView.setItem(4, n, QTableWidgetItem(str("{:.5f}".format(relative_weight[1][n]))))
-                self.tableView.setItem(5, n, QTableWidgetItem(str("{:.5f}".format(relative_weight[2][n]))))
-                self.tableView.setItem(6, n, QTableWidgetItem(str(most_frequent_venues[n] )))
-            visualize_graphs(tags=T, graphs=subgraphs, port=p)
+        analyzer = Analyzer()
+        T, G = generate_graphs(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles)
 
+        no_comp = []
+        if i == 1:
+            self.subgraphs = analyzer.filter_graph_by_rank(G, ret)
+        elif i==2:
+            self.subgraphs = analyzer.filter_graph_by_managerole(G, ret[0])
+        else:
+            self.subgraphs = analyzer.filter_graph_by_area(G, ret)
+        delta_k_data = analyzer.get_degree_increase(self.subgraphs)
+        self.degree_inc_pic_names = []
+        for j in range(0, len(delta_k_data)):
+            if delta_k_data[j]:
+                self.degree_inc_pic_names.append(analyzer.visualize_degree_increase(delta_k_data[j]))
+            else:
+                self.degree_inc_pic_names.append("no_image_available.jpg")
+        total_num_of_partners, total_num_of_papers, \
+        total_num_of_venues, most_frequent_venues \
+            = analyzer.get_colab_properties(graphs=self.subgraphs)
+        relative_weight = analyzer.get_relative_colab_weight(self.subgraphs, G)
+        centrality = []
+        for i in range(21):
+            try:
+                centrality.append(analyzer.analyze_centrality_of_main_component(self.subgraphs[i]))
+                no_comp.append(False)
+            except ValueError:
+                no_comp.append(True)
+        for n in range(21):
+            self.tableView.setItem(0, n, QTableWidgetItem(str(total_num_of_partners[n])))
+            self.tableView.setItem(1, n, QTableWidgetItem(str(total_num_of_papers[n])))
+            self.tableView.setItem(2, n, QTableWidgetItem(str(total_num_of_venues[n])))
+            self.tableView.setItem(3, n, QTableWidgetItem(str("{:.5f}".format(relative_weight[0][n]))))
+            self.tableView.setItem(4, n, QTableWidgetItem(str("{:.5f}".format(relative_weight[1][n]))))
+            self.tableView.setItem(5, n, QTableWidgetItem(str("{:.5f}".format(relative_weight[2][n]))))
+            if not no_comp[n]:
+                self.tableView.setItem(6, n, QTableWidgetItem(str(centrality[0]["betweenness_centrality"])))
+                self.tableView.setItem(7, n, QTableWidgetItem(str(centrality[1]["closeness_centrality"])))
+                self.tableView.setItem(8, n, QTableWidgetItem(str(centrality[2]["eigenvector_centrality"])))
+            self.tableView.setItem(9, n, QTableWidgetItem(str(most_frequent_venues[n])))
+        visualize_graphs(tags=T, graphs=self.subgraphs, port=p)
+
+    def updateGraph(self, i):
+        if self.submitClicked:
+            self.label_2.setScaledContents(True)
+            self.label_2.setPixmap(QtGui.QPixmap("pictures/" + self.degree_inc_pic_names[i-1]))
 
 
 
