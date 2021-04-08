@@ -506,10 +506,63 @@ class Analyzer:
         return [[sub / total for sub, total in zip(sub_graphs_colab_properties[i],
                                                    complete_graphs_colab_properties[i])] for i in range(0, 3)]
 
+    def get_correlation(self, a: Union[list, dict], b: Union[list, dict], method: str = 'pearson'):
+        """
+        get the correlation between two criteria (e.g. betweeness centrality v.s. node excellence)
+        :param a: sorted list or dictionary by criteria one
+        :param b: sorted list or dictionary by criteria two
+        :param method: default pearson correlation
+        :return: correlation between a and b
+        """
+        if type(a) is list:
+            a = self._convert_sorted_list_to_dict(a)
+        if type(b) is list:
+            b = self._convert_sorted_list_to_dict(b)
+
+        key_intersection = set(a.keys()).intersection(b.keys())
+
+        df = pd.DataFrame([(a[k], b[k]) for k in key_intersection], columns=['a', 'b'])
+        return df.corr(method=method)['a']['b']
+
+    @staticmethod
+    def _convert_sorted_list_to_dict(sorted_list: list) -> dict:
+        result = dict()
+        for pair in sorted_list:
+            if pair[0] in result:
+                print(f"Duplicated Key {pair[0]} Detected! Overwriting...")
+            result[pair[0]] = pair[1]
+        return result
+
+    @staticmethod
+    def calculate_growth(data: list) -> list:
+        """
+        return the delta value for each element in the data list with regard to its previous element
+        :param data: list to be calculated
+        :return: list with the first element as '-'
+        """
+        return ['{}'.format(data[i] - data[i - 1]) if i >= 1 and data[i - 1] != 0 else '-'
+                for i in range(0, len(data))]
+
+    @staticmethod
+    def calculate_growth_in_percentage(data: list) -> list:
+        """
+        return the relative growth in percentage for each element in the data list, comparing with its previous element
+        :param data: list to be calculated
+        :return: list with the first element as '-'
+        """
+        return ['{:.2f}%'.format((data[i] - data[i-1]) / data[i-1] * 100) if i >= 1 and data[i-1] != 0 else '-'
+                for i in range(0, len(data))]
+
 
 if __name__ == '__main__':
+    """
+    This is just for quick testing
+    """
     analyzer = Analyzer()
-    # G = generate_graph(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles, by_year=2021)
+    a = analyzer.auth_excellence
+    G = generate_graph(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles, by_year=2021)
+    closeness_centrality = analyzer.analyze_centrality_of_main_component(G)["closeness_centrality"]
+    print(analyzer.get_correlation(closeness_centrality, analyzer.auth_excellence))
     # G_test = analyzer.filter_graph_by_area(G, ['AI/ML', 'Computer Vision'])
     # visualize_graph(G_test, port=get_free_port())
     # for i in range(1999, 2021):
@@ -523,9 +576,9 @@ if __name__ == '__main__':
     # filename = analyzer.plot_degree_distribution_loglog(G, normalized=False)
     # print("filename:", filename)
     T, G = generate_graphs(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles)
-    analyzer.plot_avg_degree_hist(G, T)
-    analyzer.plot_avg_clust_coeff_hist(G, T)
-    analyzer.plot_diameter_hist(G, T)
+    # analyzer.plot_avg_degree_hist(G, T)
+    # analyzer.plot_avg_clust_coeff_hist(G, T)
+    # analyzer.plot_diameter_hist(G, T)
     # new_attachment_by_degree_data = analyzer.detect_preferential_attachment(G)
     # for i in range(0, len(new_attachment_by_degree_data)):
     #     try:
@@ -540,9 +593,8 @@ if __name__ == '__main__':
     # sub_G = analyzer.filter_graph_by_rank(G, {'Professor', "Associate Professor"})
     # relative_weight = analyzer.get_relative_colab_weight(sub_G, G)
     # print(relative_weight[0])  # num of partners / total num of partners
-    # betweenness_centrality = analyzer.analyze_centrality_of_main_component(G)["betweenness_centrality"]
-    # print(betweenness_centrality)
-    # analyzer.get_colab_properties(graphs=G)
+    total_num_of_papers = analyzer.get_colab_properties(graphs=G)[1]
+    print(analyzer.calculate_growth_in_percentage(total_num_of_papers))
     # subgraphs = analyzer.filter_graph_by_names(G, ['Miao Chunyan', 'Tan Rui', 'Wen Yonggang', 'AAAA'])
     # subgraphs = analyzer.filter_graph_by_rank(G, {'Professor','Lecturer'})
     # visualize_graphs(tags=T, graphs=subgraphs, port=get_free_port())
