@@ -331,12 +331,12 @@ class propertyDialog(object):
 class analyzeDialog(object):
     def setupUi(self, Form, i):
         Form.setObjectName("Form")
-        Form.resize(1014, 615)
+        Form.resize(1014, 815)
         self.summary = QtWidgets.QLabel(Form)
         self.summary.setGeometry(QtCore.QRect(30, 46, 177, 23))
         self.summary.setObjectName("summary")
         self.layoutWidget = QtWidgets.QWidget(Form)
-        self.layoutWidget.setGeometry(QtCore.QRect(70, 560, 671, 25))
+        self.layoutWidget.setGeometry(QtCore.QRect(70, 760, 671, 25))
         self.layoutWidget.setObjectName("layoutWidget")
         self.horizontalLayout = QtWidgets.QHBoxLayout(self.layoutWidget)
         self.horizontalLayout.setContentsMargins(0, 0, 0, 0)
@@ -377,6 +377,7 @@ class analyzeDialog(object):
     def retranslateUi(self, Form, i):
         _translate = QtCore.QCoreApplication.translate
         Form.setWindowTitle(_translate("Form", "Form"))
+        self.analyzer = Analyzer()
         if i==4:
             self.graphView = QtWidgets.QLabel(Form)
 
@@ -391,7 +392,7 @@ class analyzeDialog(object):
         else:
             self.label.setGeometry(QtCore.QRect(380, 50, 47, 13))
             self.tableView = QtWidgets.QTableWidget(Form)
-            self.tableView.setGeometry(QtCore.QRect(370, 80, 601, 421))
+            self.tableView.setGeometry(QtCore.QRect(370, 80, 601, 621))
             self.tableView.setSizeAdjustPolicy(QtWidgets.QAbstractScrollArea.AdjustToContentsOnFirstShow)
             self.tableView.setVerticalScrollMode(QtWidgets.QAbstractItemView.ScrollPerPixel)
             self.tableView.setHorizontalScrollMode(QtWidgets.QAbstractItemView.ScrollPerPixel)
@@ -423,7 +424,7 @@ class analyzeDialog(object):
             self.submit = QtWidgets.QPushButton(Form)
             self.submit.setObjectName("submit")
             self.submit.setText(_translate("Form", "submit"))
-            self.submit.setGeometry(QtCore.QRect(20, 500, 300, 30))
+            self.submit.setGeometry(QtCore.QRect(20, 700, 300, 30))
             self.submit.clicked.connect(self.checkstatus)
 
             if i==2:
@@ -433,22 +434,31 @@ class analyzeDialog(object):
                 self.checkbox1.setText(_translate("Dialog", "Management-only"))
                 self.option = 2
             else:
-                self.names = ["Professor", "Assistant Prof", "Lecturer"] if i == 1 \
-                    else ["Machine Learning", "Computer Vision", "Artificial Intelligence"]
+                self.names = self.analyzer.auth_name_data['Position'].unique() if i == 1 \
+                    else self.analyzer.auth_name_data['Area'].unique()
                 self.option = 1 if i == 1 \
                     else 3
-                self.checkbox1 = QtWidgets.QCheckBox(Form)
-                self.checkbox1.setGeometry(QtCore.QRect(20, 450, 120, 30))
-                self.checkbox1.setObjectName("rank1")
-                self.checkbox1.setText(_translate("Dialog", self.names[0]))
-                self.checkbox2 = QtWidgets.QCheckBox(Form)
-                self.checkbox2.setGeometry(QtCore.QRect(140, 450, 130, 30))
-                self.checkbox2.setObjectName("rank2")
-                self.checkbox2.setText(_translate("Dialog", self.names[1]))
-                self.checkbox3 = QtWidgets.QCheckBox(Form)
-                self.checkbox3.setGeometry(QtCore.QRect(270, 450, 120, 30))
-                self.checkbox3.setObjectName("rank3")
-                self.checkbox3.setText(_translate("Dialog", self.names[2]))
+                self.scrollArea = QtWidgets.QScrollArea(Form)
+                self.scrollArea.setGeometry(QtCore.QRect(20, 450, 300, 236))
+                self.scrollArea.setFrameShape(QtWidgets.QFrame.Panel)
+                self.scrollArea.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
+                self.scrollArea.setWidgetResizable(True)
+                self.scrollArea.setObjectName("scrollArea")
+                self.scrollAreaWidgetContents = QtWidgets.QWidget()
+                self.scrollAreaWidgetContents.setGeometry(QtCore.QRect(0, 0, 270, 300))
+                self.scrollAreaWidgetContents.setObjectName("scrollAreaWidgetContents")
+                self.formLayout = QtWidgets.QFormLayout(self.scrollAreaWidgetContents)
+                self.formLayout.setObjectName("formLayout")
+                self.numOfCheckbox = len(self.names)
+                self.checkboxes = []
+                for n in range(self.numOfCheckbox):
+                    checkBox = QtWidgets.QCheckBox(self.scrollAreaWidgetContents)
+                    checkBox.setObjectName("checkBox" + str(n))
+                    self.formLayout.setWidget(n, QtWidgets.QFormLayout.LabelRole, checkBox)
+                    self.checkboxes.append(checkBox)
+                self.scrollArea.setWidget(self.scrollAreaWidgetContents)
+                for n in range(self.numOfCheckbox):
+                    self.checkboxes[n].setText(self.names[n])
 
         self.ok.setText(_translate("Form", "OK"))
         self.cancel.setText(_translate("Form", "Cancel"))
@@ -456,10 +466,10 @@ class analyzeDialog(object):
     def checkstatus(self):
         self.submitClicked = True
         ret = []
-        if self.option!=2:
-            for i in range(1, 4):
-                exec("""if self.checkbox{}.isChecked():
-                        ret.append(self.checkbox{}.text())""".format(i, i))
+        if self.option != 2:
+            for i in range(self.numOfCheckbox):
+                exec("""if self.checkboxes[i].isChecked():
+                        ret.append(self.checkboxes[i].text())""".format(i, i))
             print(ret)
         else:
             if self.checkbox1.isChecked():
@@ -475,31 +485,30 @@ class analyzeDialog(object):
 
     def callApi(self, i, ret, p):
         print("if the port refused to connect, please wait for the server to be ready and reload.")
-        analyzer = Analyzer()
-        T, G = generate_graphs(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles)
+        T, G = generate_graphs(name_data=self.analyzer.auth_name_data, profile_data=self.analyzer.auth_profiles)
 
         no_comp = []
         if i == 1:
-            self.subgraphs = analyzer.filter_graph_by_rank(G, ret)
+            self.subgraphs = self.analyzer.filter_graph_by_rank(G, ret)
         elif i==2:
-            self.subgraphs = analyzer.filter_graph_by_managerole(G, ret[0])
+            self.subgraphs = self.analyzer.filter_graph_by_managerole(G, ret[0])
         else:
-            self.subgraphs = analyzer.filter_graph_by_area(G, ret)
-        delta_k_data = analyzer.get_degree_increase(self.subgraphs)
+            self.subgraphs = self.analyzer.filter_graph_by_area(G, ret)
+        delta_k_data = self.analyzer.get_degree_increase(self.subgraphs)
         self.degree_inc_pic_names = []
         for j in range(0, len(delta_k_data)):
             if delta_k_data[j]:
-                self.degree_inc_pic_names.append(analyzer.visualize_degree_increase(delta_k_data[j]))
+                self.degree_inc_pic_names.append(self.analyzer.visualize_degree_increase(delta_k_data[j]))
             else:
                 self.degree_inc_pic_names.append("no_image_available.jpg")
         total_num_of_partners, total_num_of_papers, \
         total_num_of_venues, most_frequent_venues \
-            = analyzer.get_colab_properties(graphs=self.subgraphs)
-        relative_weight = analyzer.get_relative_colab_weight(self.subgraphs, G)
+            = self.analyzer.get_colab_properties(graphs=self.subgraphs)
+        relative_weight = self.analyzer.get_relative_colab_weight(self.subgraphs, G)
         centrality = []
         for i in range(21):
             try:
-                centrality.append(analyzer.analyze_centrality_of_main_component(self.subgraphs[i]))
+                centrality.append(self.analyzer.analyze_centrality_of_main_component(self.subgraphs[i]))
                 no_comp.append(False)
             except ValueError:
                 no_comp.append(True)
