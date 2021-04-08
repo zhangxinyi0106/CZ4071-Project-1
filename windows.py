@@ -7,6 +7,7 @@ from preprocessing import *
 from faculty import *
 import threading
 
+
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
@@ -94,6 +95,7 @@ class Ui_MainWindow(object):
         #file = pd.read_excel("data/Faculty.xlsx")
         #facultyList = file["Faculty"]
 
+
 class Ui_Dialog(object):
     def setupUi(self, Dialog2):
         Dialog2.setObjectName("Dialog2")
@@ -149,6 +151,7 @@ class Ui_Dialog(object):
         self.label_4.setText(_translate("Dialog2", "Evolvement of network since year 2000"))
         self.label.setText(_translate("Dialog2", "select year"))
         self.pushButton.setText(_translate("Dialog2", "Load graph"))
+
 
 class checkbox_Dialog(object):
 
@@ -233,6 +236,7 @@ self.gridLayout.addLayout(self.horizontalLayout_{}, {}, 0, 1, 1)
         T, G = generate_graphs(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles)
         subgraphs = analyzer.filter_graph_by_names(G, ret)
         visualize_graphs(tags=T, graphs=subgraphs, port=p)
+
 
 class propertyDialog(object):
     def setupUi(self, Form, i):
@@ -328,6 +332,7 @@ class propertyDialog(object):
             self.summary.setText(_translate("Form", "Summary"))
             self.graph.setText(_translate("Form", "Graph"))
 
+
 class analyzeDialog(object):
     def setupUi(self, Form, i):
         Form.setObjectName("Form")
@@ -380,9 +385,21 @@ class analyzeDialog(object):
         self.analyzer = Analyzer()
         if i==4:
             self.graphView = QtWidgets.QLabel(Form)
-
+            a = self.analyzer.auth_excellence
+            G = generate_graph(name_data=self.analyzer.auth_name_data,
+                               profile_data=self.analyzer.auth_profiles,
+                               by_year=2021
+                               )
+            centralities = self.analyzer.analyze_centrality_of_main_component(G)
+            text = ""
+            c = ['betweenness_centrality', 'closeness_centrality','eigenvector_centrality']
+            for i in range(len(c)):
+                t = "correlation based on " + c[i] + ": \n" \
+                        + str(self.analyzer.get_correlation(centralities[c[i]], self.analyzer.auth_excellence)) \
+                        + "\n"
+                text += t
             self.summary.setText(_translate("Form", "Description"))
-            self.label_2.setText(_translate("Form", "Description"))
+            self.label_2.setText(_translate("Form", text))
             self.label.setGeometry(QtCore.QRect(370, 80, 351, 421))
             self.label.setFrameShape(QtWidgets.QFrame.StyledPanel)
             self.label.setText("")
@@ -527,9 +544,10 @@ class analyzeDialog(object):
         visualize_graphs(tags=T, graphs=self.subgraphs, port=p)
 
     def updateGraph(self, i):
-        if self.submitClicked:
+        if self.submitClicked and i != 0:
             self.label_2.setScaledContents(True)
             self.label_2.setPixmap(QtGui.QPixmap("pictures/" + self.degree_inc_pic_names[i-1]))
+
 
 class facultyMemDialog(object):
     def setupUi(self, Form):
@@ -538,20 +556,14 @@ class facultyMemDialog(object):
         self.graph = QtWidgets.QLabel(Form)
         self.graph.setGeometry(QtCore.QRect(300, 30, 81, 21))
         self.graph.setObjectName("graph")
-        self.label = QtWidgets.QLabel(Form)
-        self.label.setGeometry(QtCore.QRect(290, 100, 471, 351))
-        self.label.setFrameShape(QtWidgets.QFrame.StyledPanel)
-        self.label.setText("")
-        self.label.setPixmap(QtGui.QPixmap("pictures/Property1.jpg"))
-        self.label.setScaledContents(True)
-        self.label.setTextInteractionFlags(QtCore.Qt.LinksAccessibleByMouse)
-        self.label.setObjectName("label_2")
         self.property = QtWidgets.QComboBox(Form)
         self.property.setGeometry(QtCore.QRect(10, 40, 271, 42))
         self.property.setObjectName("property")
-        self.property.addItem("")
-        self.property.addItem("")
-        #self.property.addItem("")
+        properties = ["Select one", "number of partners", "total number of collab papers",
+                      "total number of published venues", "most frequent venues"]
+        for o in range(5):
+            self.property.addItem("")
+            self.property.setItemText(o, properties[o])
         self.layoutWidget = QtWidgets.QWidget(Form)
         self.layoutWidget.setGeometry(QtCore.QRect(130, 520, 571, 25))
         self.layoutWidget.setObjectName("layoutWidget")
@@ -573,16 +585,50 @@ class facultyMemDialog(object):
     def retranslateUi(self, Form):
         _translate = QtCore.QCoreApplication.translate
         Form.setWindowTitle(_translate("Form", "Form"))
-        self.graph.setText(_translate("Form", "Graph"))
-        self.property.setItemText(0, _translate("Form", "the growth and speed of growth"))
-        self.property.setItemText(1, _translate("Form", "number of top papers"))
-        #self.property.setItemText(2, _translate("Form", "Property3"))
+        self.graph.setText(_translate("Form", "Table"))
+        self.tableView = QtWidgets.QTableWidget(Form)
+        self.tableView.setGeometry(QtCore.QRect(290, 100, 471, 351))
+        self.tableView.setSizeAdjustPolicy(QtWidgets.QAbstractScrollArea.AdjustToContentsOnFirstShow)
+        self.tableView.setVerticalScrollMode(QtWidgets.QAbstractItemView.ScrollPerPixel)
+        self.tableView.setHorizontalScrollMode(QtWidgets.QAbstractItemView.ScrollPerPixel)
+        self.tableView.setObjectName("tableView")
 
-    def updateGraph(self):
-        imagePath = "pictures"
-        currentItem = str(self.property.currentText())
-        currentImage = '%s/%s.jpg' % (imagePath, currentItem)
-        self.label.setPixmap(QtGui.QPixmap(currentImage))
+    def updateGraph(self, i):
+        if i == 0:
+            return
+        analyzer = Analyzer()
+        T, G = generate_graphs(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles)
+        total_num_of_partners, total_num_of_papers, \
+        total_num_of_venues, most_frequent_venues \
+            = analyzer.get_colab_properties(graphs=G)
+        if i == 4:
+            self.tableView.setColumnCount(21)
+            self.tableView.setRowCount(len(most_frequent_venues[0]))
+            self.tableView.setHorizontalHeaderLabels([str(num) for num in range(2000, 2021)])
+            self.tableView.setVerticalHeaderLabels([str(k) for k in range(len(most_frequent_venues[0]))])
+            for n in range(21):
+                for m in range(len(most_frequent_venues)):
+                    self.tableView.setItem(m, n, QTableWidgetItem(str(most_frequent_venues[n][m])))
+
+        else:
+            self.tableView.setColumnCount(3)
+            self.tableView.setRowCount(21)
+            self.tableView.setVerticalHeaderLabels([str(num) for num in range(2000, 2021)])
+            self.tableView.setHorizontalHeaderLabels(["total number", "growth", "grow percentage"])
+            if i == 1:
+                self.growth = analyzer.calculate_growth(total_num_of_partners)
+                self.growPer = analyzer.calculate_growth_in_percentage(total_num_of_partners)
+            elif i == 2:
+                self.growth = analyzer.calculate_growth(total_num_of_papers)
+                self.growPer = analyzer.calculate_growth_in_percentage(total_num_of_papers)
+            else:
+                self.growth = analyzer.calculate_growth(total_num_of_venues)
+                self.growPer = analyzer.calculate_growth_in_percentage(total_num_of_venues)
+            for n in range(21):
+                self.tableView.setItem(n, 0, QTableWidgetItem(str(total_num_of_partners[n])))
+                self.tableView.setItem(n, 1, QTableWidgetItem(str(self.growth[n])))
+                self.tableView.setItem(n, 2, QTableWidgetItem(str(self.growPer[n])))
+
 
 class newFacultyDialog(object):
     def setupUi(self, Form):
