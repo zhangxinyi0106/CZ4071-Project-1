@@ -385,7 +385,7 @@ class analyzeDialog(object):
         self.analyzer = Analyzer()
         if i==4:
             self.graphView = QtWidgets.QLabel(Form)
-            a = self.analyzer.auth_excellence
+            excellence = self.analyzer.auth_excellence
             G = generate_graph(name_data=self.analyzer.auth_name_data,
                                profile_data=self.analyzer.auth_profiles,
                                by_year=2021
@@ -394,17 +394,36 @@ class analyzeDialog(object):
             text = ""
             c = ['betweenness_centrality', 'closeness_centrality','eigenvector_centrality']
             for i in range(len(c)):
-                t = "correlation based on " + c[i] + ": \n" \
-                        + str(self.analyzer.get_correlation(centralities[c[i]], self.analyzer.auth_excellence)) \
-                        + "\n"
+                t = "Correlation between " + c[i] + " nodes\n" \
+                        + "and excellence nodes:" \
+                        + str(self.analyzer.get_correlation(centralities[c[i]], excellence)) \
+                        + "\n\n"
                 text += t
             self.summary.setText(_translate("Form", "Description"))
             self.label_2.setText(_translate("Form", text))
-            self.label.setGeometry(QtCore.QRect(370, 80, 351, 421))
+            self.label_2.setGeometry(QtCore.QRect(20, 80, 370, 300))
+            self.tableView = QtWidgets.QTableWidget(Form)
+            self.tableView.setGeometry(QtCore.QRect(400, 80, 551, 621))
+            self.tableView.setSizeAdjustPolicy(QtWidgets.QAbstractScrollArea.AdjustToContentsOnFirstShow)
+            self.tableView.setVerticalScrollMode(QtWidgets.QAbstractItemView.ScrollPerPixel)
+            self.tableView.setHorizontalScrollMode(QtWidgets.QAbstractItemView.ScrollPerPixel)
+            self.tableView.setObjectName("tableView")
+            columnCount = 4
+            rowCount = 31
+            self.tableView.setColumnCount(columnCount)
+            self.tableView.setRowCount(rowCount)
+            self.tableView.setHorizontalHeaderLabels(["betweenness centrality", "closeness centrality",
+                                                      "eigenvector centrality", "excellence"])
+            self.tableView.setVerticalHeaderLabels([' '] + [str(m) for m in range(1, rowCount)])
+            excellence = [(k, v) for k, v in sorted(excellence.items(), key=lambda item: item[1], reverse=True)]
+            for n in range(rowCount):
+                self.tableView.setItem(n, 0, QTableWidgetItem(str(centralities['betweenness_centrality'][n])))
+                self.tableView.setItem(n, 1, QTableWidgetItem(str(centralities['closeness_centrality'][n])))
+                self.tableView.setItem(n, 2, QTableWidgetItem(str(centralities['eigenvector_centrality'][n])))
+                self.tableView.setItem(n, 3, QTableWidgetItem(str(excellence[n])))
+            self.label.setGeometry(QtCore.QRect(400, 50, 47, 23))
+            self.label.setText(_translate("Form", "Table"))
             self.label.setFrameShape(QtWidgets.QFrame.StyledPanel)
-            self.label.setText("")
-            self.label.setPixmap(QtGui.QPixmap("pictures/graph.png"))
-            self.label.setScaledContents(True)
             self.label.setTextInteractionFlags(QtCore.Qt.LinksAccessibleByMouse)
         else:
             self.label.setGeometry(QtCore.QRect(380, 50, 47, 13))
@@ -503,7 +522,22 @@ class analyzeDialog(object):
     def callApi(self, i, ret, p):
         print("if the port refused to connect, please wait for the server to be ready and reload.")
         T, G = generate_graphs(name_data=self.analyzer.auth_name_data, profile_data=self.analyzer.auth_profiles)
-
+        # get 2 colab properties of all paired areas and store in excel file
+        # dic = {}
+        # for key in ret:
+        #     dic[key] = []
+        # for o in range(len(ret)):
+        #     for k in range(len(ret)):
+        #         areas = []
+        #         areas.append(ret[o])
+        #         areas.append(ret[k])
+        #         self.subgraphs = self.analyzer.filter_graph_by_area(G, areas)
+        #         total_num_of_partners, total_num_of_papers, \
+        #         total_num_of_venues, most_frequent_venues \
+        #             = self.analyzer.get_colab_properties(graphs=self.subgraphs)
+        #         dic[ret[k]].append(total_num_of_venues[20])
+        # df = pd.DataFrame(data=dic)
+        # df.to_excel('./areas.xlsx')
         no_comp = []
         if i == 1:
             self.subgraphs = self.analyzer.filter_graph_by_rank(G, ret)
@@ -521,6 +555,7 @@ class analyzeDialog(object):
         total_num_of_partners, total_num_of_papers, \
         total_num_of_venues, most_frequent_venues \
             = self.analyzer.get_colab_properties(graphs=self.subgraphs)
+
         relative_weight = self.analyzer.get_relative_colab_weight(self.subgraphs, G)
         centrality = []
         for i in range(21):
