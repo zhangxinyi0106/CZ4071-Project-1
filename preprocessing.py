@@ -189,6 +189,7 @@ def generate_graph(name_data: pd.DataFrame, profile_data: dict, by_year: int = N
             properties = dict(External=True, Colab_Venues=set())
             graph.add_node(name, **properties)
             pid_to_name[external_profile_data[name]['dblpperson']['@pid']] = name
+        profile_data = {**profile_data, **external_profile_data}
 
     print("Constructing Graph...")
 

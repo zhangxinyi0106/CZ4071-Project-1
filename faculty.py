@@ -608,8 +608,8 @@ class Analyzer:
 
     def _get_all_external_collaborators(self) -> list:
         """
-
-        :return: {}
+        get the name list of all external collaborators of faculty members
+        :return: sorted list of Collaborators object based on the hard-coded algorithm
         """
         faculty_pids = set({v['dblpperson']['@pid'] for v in self.auth_profiles.values()})
 
@@ -646,7 +646,14 @@ class Analyzer:
 
         return sorted(collaborator_list.values(), key=lambda e: e.score, reverse=True)
 
-    def _get_external_collaborators_profile(self, top, reuse, target_pickle_name):
+    def _get_external_collaborators_profile(self, top: int, reuse: bool, target_pickle_name: str) -> dict:
+        """
+        fetch the candidate collaborator profiles from dblp
+        :param top: number of top candidates to be fetched
+        :param reuse: reusing old ceche data
+        :param target_pickle_name: target cache data name
+        :return: external collaborator profiles in dictionary format; the same as faculty profile
+        """
         if top is not None:
             assert top > 0, 'Invalid Cut-off!'
             candidate_collaborators = self.external_collaborators[:top]
@@ -662,6 +669,15 @@ class Analyzer:
         return profile_data
 
     def use_external_collaborators_profiles(self, top=2000, reuse=True, target_pickle_name="external_profiles"):
+        """
+        load the external collaborators profiles; used when the adding new faculty member function is needed
+        :param top: number of top candidates to be fetched
+        :param reuse: reusing old ceche data
+        :param target_pickle_name: target cache data name
+        :return: None; stored in the analyzer object
+        """
+        assert top >= 1000, "At least 1000 is required!"
+
         if self.external_collaborators_profiles is None:
             self.external_collaborators_profiles = self._get_external_collaborators_profile(top, reuse,
                                                                                             target_pickle_name)
@@ -669,6 +685,11 @@ class Analyzer:
             self.external_collaborators_excellence = self._get_auth_excellence(external=True)
 
     def get_new_member_profile(self, based_on_excellece=True):
+        """
+        get the profiles of the chosen 1000 new faculty candidates
+        :param based_on_excellece: True if to consider the new member's excellence
+        :return: external collaborator profiles in dictionary format; the same as faculty profile
+        """
         assert self.external_collaborators_profiles is not None, \
             "Please call use_external_collaborators_profiles first to load the profiles!"
 
@@ -686,13 +707,13 @@ if __name__ == '__main__':
     This is just for quick testing
     """
     analyzer = Analyzer()
-    analyzer.use_external_collaborators_profiles(top=2000,target_pickle_name="redundent")
+    analyzer.use_external_collaborators_profiles(top=2000)
     external_profiles = analyzer.get_new_member_profile(based_on_excellece=True)
     G_new = generate_graph(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles,
                            external_profile_data=external_profiles)
     visualize_graph(G_new)
 
-    a = analyzer.auth_excellence
+    print(analyzer.auth_excellence)
     G = generate_graph(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles, by_year=2021)
     closeness_centrality = analyzer.analyze_centrality_of_main_component(G)["closeness_centrality"]
     print(analyzer.get_correlation(closeness_centrality, analyzer.auth_excellence))
