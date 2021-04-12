@@ -10,7 +10,7 @@ from pictures import PICTURE_PATH
 
 
 class Analyzer:
-    venue_to_booktitle = dict({
+    venue_to_booktitle = dict({  # ignore all workshop papers
         'ACM SIGMOD': r'SIGMOD Conference',
         'ACM KDD': r'KDD',
         'ACM SIGIR': r'SIGIR',
