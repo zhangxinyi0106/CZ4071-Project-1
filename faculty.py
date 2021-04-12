@@ -530,17 +530,22 @@ class Analyzer:
          most frequent venues (all graph-wise)
         """
         total_num_of_partners = [graph.number_of_edges() for graph in graphs]
-        total_num_of_papers = [int(graph.size(weight="weight")) for graph in graphs]
+        total_num_of_papers = []
+        for graph in graphs:
+            total_papers = set()
+            for _, _, a in graph.edges(data=True):
+                total_papers |= a["paper"]
+            total_num_of_papers.append(len(total_papers))
         total_num_of_venues = []
         most_frequent_venues = []
         for graph in graphs:
-            total_venues = []
+            total_venues = dict()
             for _, attributes in graph.nodes(data=True):
-                total_venues += (list(attributes["Colab_Venues"]))
+                total_venues.update(attributes["Colab_Venues"])
 
-            total_num_of_venues.append(len(set(total_venues)))
-            most_frequent_venues.append(sorted([(venue, frequency // 2) for (venue, frequency)
-                                                in Counter(total_venues).items()], key=lambda x: x[1], reverse=True))
+            total_num_of_venues.append(len(set(total_venues.values())))
+            most_frequent_venues.append(sorted(list(Counter(total_venues.values()).items()), key=lambda x: x[1],
+                                               reverse=True))
         return total_num_of_partners, total_num_of_papers, total_num_of_venues, most_frequent_venues
 
     @classmethod
@@ -704,7 +709,7 @@ class Analyzer:
 
 if __name__ == '__main__':
     """
-    This is just for quick testing
+    This is just for quick testing and not supposed to be run cons
     """
     analyzer = Analyzer()
     analyzer.use_external_collaborators_profiles(top=2000)
@@ -713,8 +718,9 @@ if __name__ == '__main__':
                            external_profile_data=external_profiles)
     visualize_graph(G_new)
 
-    print(analyzer.auth_excellence)
+    # print(analyzer.auth_excellence)
     G = generate_graph(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles, by_year=2021)
+    # visualize_graph(G)
     closeness_centrality = analyzer.analyze_centrality_of_main_component(G)["closeness_centrality"]
     print(analyzer.get_correlation(closeness_centrality, analyzer.auth_excellence))
     # G_test = analyzer.filter_graph_by_area(G, ['AI/ML', 'Computer Vision'])
@@ -729,7 +735,8 @@ if __name__ == '__main__':
     # analyzer.plot_degree_distribution_hist(G)
     # filename = analyzer.plot_degree_distribution_loglog(G, normalized=False)
     # print("filename:", filename)
-    T, G = generate_graphs(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles)
+    # T, G = generate_graphs(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles)
+    # analyzer.get_colab_properties(G)
     # analyzer.plot_avg_degree_hist(G, T)
     # analyzer.plot_avg_clust_coeff_hist(G, T)
     # analyzer.plot_diameter_hist(G, T)
