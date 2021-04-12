@@ -693,7 +693,7 @@ class Analyzer:
         """
         get the profiles of the chosen 1000 new faculty candidates
         :param based_on_excellece: True if to consider the new member's excellence
-        :return: external collaborator profiles in dictionary format; the same as faculty profile
+        :return: a sorted name list with score, and external collaborator profiles in dictionary format
         """
         assert self.external_collaborators_profiles is not None, \
             "Please call use_external_collaborators_profiles first to load the profiles!"
@@ -704,7 +704,7 @@ class Analyzer:
         else:
             name_list = [c.name for c in self.external_collaborators[:1000]]
 
-        return {n: self.external_collaborators_profiles[n] for n in name_list}
+        return name_list, {n: self.external_collaborators_profiles[n] for n in name_list}
 
 
 if __name__ == '__main__':
@@ -712,17 +712,19 @@ if __name__ == '__main__':
     This is just for quick testing and not supposed to be run cons
     """
     analyzer = Analyzer()
-    analyzer.use_external_collaborators_profiles(top=2000)
-    external_profiles = analyzer.get_new_member_profile(based_on_excellece=True)
+
+    analyzer.use_external_collaborators_profiles()
+    sorted_namelist, external_profiles = analyzer.get_new_member_profile(based_on_excellece=True)
+    print(sorted_namelist)
     G_new = generate_graph(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles,
                            external_profile_data=external_profiles)
     visualize_graph(G_new)
 
     # print(analyzer.auth_excellence)
-    G = generate_graph(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles, by_year=2021)
+    # G = generate_graph(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles, by_year=2021)
     # visualize_graph(G)
-    closeness_centrality = analyzer.analyze_centrality_of_main_component(G)["closeness_centrality"]
-    print(analyzer.get_correlation(closeness_centrality, analyzer.auth_excellence))
+    # closeness_centrality = analyzer.analyze_centrality_of_main_component(G)["closeness_centrality"]
+    # print(analyzer.get_correlation(closeness_centrality, analyzer.auth_excellence))
     # G_test = analyzer.filter_graph_by_area(G, ['AI/ML', 'Computer Vision'])
     # visualize_graph(G_test, port=get_free_port())
     # for i in range(1999, 2021):
