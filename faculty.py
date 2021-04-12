@@ -64,6 +64,8 @@ class Analyzer:
         self.area_to_top_booktitle = self._area_name_to_booktitle()
         self.auth_excellence = self._get_auth_excellence()
         self.external_collaborators = self._get_all_external_collaborators()
+        self.external_collaborators_profiles = None
+        self.external_collaborators_excellence = None
 
     def _area_name_to_booktitle(self):
         """
@@ -102,7 +104,7 @@ class Analyzer:
         else:
             raise ValueError(f'Unexpected Conference Name {venue_name} Encountered!')
 
-    def _get_auth_excellence(self) -> dict:
+    def _get_auth_excellence(self, external=False) -> dict:
         """
         count the number of paper published in the respective top conferences
         by each faculty member in the past 10 years (included)
@@ -113,13 +115,22 @@ class Analyzer:
         general_reg = re.compile(f"({'|'.join([f'({r})' for r in self.area_to_top_booktitle.values()])})$")
 
         excellence = dict()
-        for k, v in self.auth_profiles.items():
-            area = self.auth_name_data[self.auth_name_data.Faculty == k].Area.to_string(index=False)
-            if area not in self.area_to_top_booktitle:
-                print(f"Unexpected Area {area} Encountered! Matching All Top Conferences Instead...")
+
+        if external:
+            profile = self.external_collaborators_profiles
+        else:
+            profile = self.auth_profiles
+
+        for k, v in profile.items():
+            if external:
                 reg = general_reg
             else:
-                reg = re.compile(f"{self.area_to_top_booktitle[area]}$")  # in his/her respective area
+                area = self.auth_name_data[self.auth_name_data.Faculty == k].Area.to_string(index=False)
+                if area not in self.area_to_top_booktitle:
+                    print(f"Unexpected Area {area} Encountered! Matching All Top Conferences Instead...")
+                    reg = general_reg
+                else:
+                    reg = re.compile(f"{self.area_to_top_booktitle[area]}$")  # in his/her respective area
 
             excellence[k] = 0
             publications = v['dblpperson']['r']
@@ -635,13 +646,52 @@ class Analyzer:
 
         return sorted(collaborator_list.values(), key=lambda e: e.score, reverse=True)
 
+    def _get_external_collaborators_profile(self, top, reuse, target_pickle_name):
+        if top is not None:
+            assert top > 0, 'Invalid Cut-off!'
+            candidate_collaborators = self.external_collaborators[:top]
+        else:
+            candidate_collaborators = self.external_collaborators
+
+        name_data = []
+        for c in candidate_collaborators:
+            name_data.append([c.name, f"http://dblp.org/pid/{c.pid}.xml"])
+        name_data = pd.DataFrame(name_data, columns=["Faculty", "DBLP"])
+        profile_data = fetch_dblp_profile(auth_name_data=name_data, reuse=reuse, target_pickle_name=target_pickle_name)
+
+        return profile_data
+
+    def use_external_collaborators_profiles(self, top=2000, reuse=True, target_pickle_name="external_profiles"):
+        if self.external_collaborators_profiles is None:
+            self.external_collaborators_profiles = self._get_external_collaborators_profile(top, reuse,
+                                                                                            target_pickle_name)
+        if self.external_collaborators_excellence is None:
+            self.external_collaborators_excellence = self._get_auth_excellence(external=True)
+
+    def get_new_member_profile(self, based_on_excellece=True):
+        assert self.external_collaborators_profiles is not None, \
+            "Please call use_external_collaborators_profiles first to load the profiles!"
+
+        if based_on_excellece:
+            name_list = [k for k, _ in sorted(self.external_collaborators_excellence.items(),
+                                              key=lambda item: item[1], reverse=True)][:1000]
+        else:
+            name_list = [c.name for c in self.external_collaborators[:1000]]
+
+        return {n: self.external_collaborators_profiles[n] for n in name_list}
+
 
 if __name__ == '__main__':
     """
     This is just for quick testing
     """
     analyzer = Analyzer()
-    print(analyzer.external_collaborators)
+    analyzer.use_external_collaborators_profiles(top=2000,target_pickle_name="redundent")
+    external_profiles = analyzer.get_new_member_profile(based_on_excellece=True)
+    G_new = generate_graph(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles,
+                           external_profile_data=external_profiles)
+    visualize_graph(G_new)
+
     a = analyzer.auth_excellence
     G = generate_graph(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles, by_year=2021)
     closeness_centrality = analyzer.analyze_centrality_of_main_component(G)["closeness_centrality"]
@@ -676,8 +726,8 @@ if __name__ == '__main__':
     # sub_G = analyzer.filter_graph_by_rank(G, {'Professor', "Associate Professor"})
     # relative_weight = analyzer.get_relative_colab_weight(sub_G, G)
     # print(relative_weight[0])  # num of partners / total num of partners
-    total_num_of_papers = analyzer.get_colab_properties(graphs=G)[1]
-    print(analyzer.calculate_growth_in_percentage(total_num_of_papers))
+    # total_num_of_papers = analyzer.get_colab_properties(graphs=G)[1]
+    # print(analyzer.calculate_growth_in_percentage(total_num_of_papers))
     # subgraphs = analyzer.filter_graph_by_names(G, ['Miao Chunyan', 'Tan Rui', 'Wen Yonggang', 'AAAA'])
     # subgraphs = analyzer.filter_graph_by_rank(G, {'Professor','Lecturer'})
     # visualize_graphs(tags=T, graphs=subgraphs, port=get_free_port())

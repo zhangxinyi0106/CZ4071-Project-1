@@ -95,15 +95,14 @@ def fetch_dblp_profile(auth_name_data, reuse=False, target_pickle_name=None) -> 
     profile_data = dict()
     with tqdm(total=len(url_list)) as pbar:
         for i, url in enumerate(url_list):
-            # noinspection PyBroadException
             try:
                 true_url = requests.get(url).url  # sometimes .xml will be converted to .html after redirection
                 true_url = re.sub(r'(?<=\.)html$', 'xml', true_url)
                 profile_in_xml = requests.get(true_url).content
                 profile_data[name_list[i]] = xmltodict.parse(profile_in_xml, dict_constructor=dict)
                 pbar.update(1)
-            except:
-                print(f'url {url} not fetched!')
+            except Exception as e:
+                print(f'url {url} not fetched! {str(e)}')
                 continue
 
     with open(osp.join(DATA_PATH, f'{target_pickle_name if target_pickle_name is not None else "profiles"}.pickle'),
@@ -165,28 +164,31 @@ def _validate_article(article: dict, by_year: Union[int, None]) -> list:
 
 
 def generate_graph(name_data: pd.DataFrame, profile_data: dict, by_year: int = None,
-                   faculty_member_only=True) -> nx.Graph:
+                   external_profile_data=None) -> nx.Graph:
     """
     construct a single graph from the given faculty list and dblp data with the appointed year
     :param name_data:
     :param profile_data:
     :param by_year: (included) data till witch year that the graph should present
-    :param faculty_member_only: True if excluding all other non-SCSE co-authors
+    :param external_profile_data: (optional)profiles of all other non-SCSE co-authors
     :return: graph
     """
-    # TODO: add non-faculty member co_authors
-    if not faculty_member_only:
-        raise NotImplementedError
-
     graph = nx.Graph()
 
     # add nodes
     pid_to_name = dict()
+
     for name in name_data.Faculty.unique():
         properties = name_data.loc[name_data['Faculty'] == name].drop("Faculty", 1).squeeze().to_dict()
         properties["Colab_Venues"] = set()
         graph.add_node(name, **properties)
         pid_to_name[profile_data[name]['dblpperson']['@pid']] = name
+
+    if external_profile_data is not None:
+        for name in external_profile_data.keys():
+            properties = dict(External=True, Colab_Venues=set())
+            graph.add_node(name, **properties)
+            pid_to_name[external_profile_data[name]['dblpperson']['@pid']] = name
 
     print("Constructing Graph...")
 
