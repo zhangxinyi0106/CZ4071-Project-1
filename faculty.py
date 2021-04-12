@@ -9,6 +9,15 @@ from preprocessing import *
 from pictures import PICTURE_PATH
 
 
+class Collaborator:
+    def __init__(self, pid: str, name: str):
+        self.pid = pid
+        self.name = name
+        self.partner = set()
+        self.collab_paper = set()
+        self.score = 0
+
+
 class Analyzer:
     venue_to_booktitle = dict({  # ignore all workshop papers
         'ACM SIGMOD': r'SIGMOD Conference',
@@ -54,6 +63,7 @@ class Analyzer:
                                                   sheet_name=self.top_conf_sheet_name)
         self.area_to_top_booktitle = self._area_name_to_booktitle()
         self.auth_excellence = self._get_auth_excellence()
+        self.external_collaborators = self._get_all_external_collaborators()
 
     def _area_name_to_booktitle(self):
         """
@@ -109,7 +119,7 @@ class Analyzer:
                 print(f"Unexpected Area {area} Encountered! Matching All Top Conferences Instead...")
                 reg = general_reg
             else:
-                reg = re.compile(f"{self.area_to_top_booktitle[area]}$")
+                reg = re.compile(f"{self.area_to_top_booktitle[area]}$")  # in his/her respective area
 
             excellence[k] = 0
             publications = v['dblpperson']['r']
@@ -585,12 +595,53 @@ class Analyzer:
         return ['{:.2f}%'.format((data[i] - data[i-1]) / data[i-1] * 100) if i >= 1 and data[i-1] != 0 else '-'
                 for i in range(0, len(data))]
 
+    def _get_all_external_collaborators(self) -> list:
+        """
+
+        :return: {}
+        """
+        faculty_pids = set({v['dblpperson']['@pid'] for v in self.auth_profiles.values()})
+
+        collaborator_list = dict()
+
+        for k, v in self.auth_profiles.items():
+            publications = v['dblpperson']['r']
+            if type(publications) is not list:
+                publications = [publications]
+
+            for pub in publications:
+                article = pub[next(iter(pub))]
+                authors = article['author'] if 'author' in article.keys() else article['editor']
+
+                if type(authors) is not list:
+                    continue
+
+                for co_auther in authors:
+                    co_pid = co_auther['@pid']
+                    if co_pid in faculty_pids:
+                        continue
+                    else:
+                        if co_pid not in collaborator_list:
+                            collaborator_list[co_pid] = Collaborator(co_pid, co_auther["#text"])
+
+                        collaborator_list[co_pid].partner.add(k)
+                        collaborator_list[co_pid].collab_paper.add(article["@key"])
+
+        avg_paper_per_partner = sum([len(c.collab_paper) / len(c.partner) for c in collaborator_list.values()]) \
+                                / len(collaborator_list)
+
+        for c in collaborator_list.values():
+            c.score = len(c.collab_paper) + avg_paper_per_partner * len(c.partner)
+
+        return sorted(collaborator_list.values(), key=lambda e: e.score, reverse=True)
+
 
 if __name__ == '__main__':
     """
     This is just for quick testing
     """
     analyzer = Analyzer()
+    print(analyzer.external_collaborators)
     a = analyzer.auth_excellence
     G = generate_graph(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles, by_year=2021)
     closeness_centrality = analyzer.analyze_centrality_of_main_component(G)["closeness_centrality"]
