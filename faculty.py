@@ -52,7 +52,33 @@ class Analyzer:
         self.top_conf_data = read_top_conferences(path=self.data_path,
                                                   filename=self.top_conf_filename,
                                                   sheet_name=self.top_conf_sheet_name)
+        self.area_to_top_booktitle = self._area_name_to_booktitle()
         self.auth_excellence = self._get_auth_excellence()
+
+    def _area_name_to_booktitle(self):
+        """
+        return the the regular expression code of the top conferences
+        :return: dict of area to conference code (book title)
+        """
+        area_to_code = dict()
+        for _, row in self.top_conf_data.iterrows():
+            area_name, top_conf = row.Area, row.Venue
+            try:
+                reg = self._venue_name_to_booktitle(top_conf)
+            except Exception as e:
+                print(str(e))
+                reg = top_conf.lower()
+                print(f"Using Name {reg} as Regular Expression...")
+
+            if area_name not in area_to_code:
+                area_to_code[area_name] = reg
+            else:
+                area_to_code[area_name] += '|' + reg
+
+        if "Software Engineering" in area_to_code:
+            area_to_code["Software Engg"] = area_to_code["Software Engineering"]
+
+        return area_to_code
 
     @classmethod
     def _venue_name_to_booktitle(cls, venue_name: str) -> str:
@@ -72,13 +98,19 @@ class Analyzer:
         by each faculty member in the past 10 years (included)
         :return: dictionary. key: faculty number name; value: degree of excellence
         """
-        last_ten_year = datetime.datetime.now().year - 10
-        regs = []
-        for _, v in self.top_conf_data.Venue.items():
-            regs.append(self._venue_name_to_booktitle(v))
-        reg = re.compile(f"({'|'.join([f'({r})' for r in regs])})$")
+        last_ten_year = datetime.datetime.now().year - 10  # in the last 10 years
+
+        general_reg = re.compile(f"({'|'.join([f'({r})' for r in self.area_to_top_booktitle.values()])})$")
+
         excellence = dict()
         for k, v in self.auth_profiles.items():
+            area = self.auth_name_data[self.auth_name_data.Faculty == k].Area.to_string(index=False)
+            if area not in self.area_to_top_booktitle:
+                print(f"Unexpected Area {area} Encountered! Matching All Top Conferences Instead...")
+                reg = general_reg
+            else:
+                reg = re.compile(f"{self.area_to_top_booktitle[area]}$")
+
             excellence[k] = 0
             publications = v['dblpperson']['r']
             if type(publications) is not list:
