@@ -122,30 +122,27 @@ def _append_co_auther_to_graph(authors: list, pid: str, pid_to_name: dict, facul
     :param graph:
     :return:
     """
+    if "booktitle" in article:
+        venue = article["booktitle"]
+    elif "journal" in article:
+        venue = article["journal"]
+    else:
+        venue = "Others"
+
     for co_auther in authors:
         co_pid = co_auther['@pid']
-        if co_pid == pid:
+        if co_pid == pid:  # excluding himself
             continue
         elif co_pid in pid_to_name.keys():
             co_name = pid_to_name[co_pid]
 
-            # count one paper between two authors twice
+            # duplicated paper will be overwrited
             if (faculty_member_name, co_name) in list(graph.edges):
-                graph[faculty_member_name][co_name]['paper'].add(article["@key"])  # duplicated paper will be removed
+                graph[faculty_member_name][co_name]['paper'][article["@key"]] = venue
             elif (co_name, faculty_member_name) in list(graph.edges):
-                graph[co_name][faculty_member_name]['paper'].add(article["@key"])
+                graph[co_name][faculty_member_name]['paper'][article["@key"]] = venue
             else:
-                graph.add_edge(faculty_member_name, co_name, paper={article["@key"]})
-
-            if "booktitle" in article:
-                venue = article["booktitle"]
-            elif "journal" in article:
-                venue = article["journal"]
-            else:
-                venue = "Book"
-
-            for name in (faculty_member_name, co_name):
-                graph.nodes[name]['Colab_Venues'][article["@key"]] = venue
+                graph.add_edge(faculty_member_name, co_name, paper={article["@key"]: venue})
 
 
 def _validate_article(article: dict, by_year: Union[int, None]) -> list:
@@ -180,13 +177,12 @@ def generate_graph(name_data: pd.DataFrame, profile_data: dict, by_year: int = N
 
     for name in name_data.Faculty.unique():
         properties = name_data.loc[name_data['Faculty'] == name].drop("Faculty", 1).squeeze().to_dict()
-        properties["Colab_Venues"] = dict()
         graph.add_node(name, **properties)
         pid_to_name[profile_data[name]['dblpperson']['@pid']] = name
 
     if external_profile_data is not None:
         for name in external_profile_data.keys():
-            properties = dict(External=True, Colab_Venues=dict())
+            properties = dict(External=True)
             graph.add_node(name, **properties)
             pid_to_name[external_profile_data[name]['dblpperson']['@pid']] = name
         profile_data = {**profile_data, **external_profile_data}
@@ -351,12 +347,9 @@ def _prepare_figure(graph: nx.Graph) -> go.Figure:
     for _, adjacencies in enumerate(graph.adjacency()):
         related_papers = set()
         for prop in adjacencies[1].values():
-            related_papers |= prop['paper']
+            related_papers |= set(prop['paper'].keys())
         node_total_edge_weight.append(len(related_papers))
-        node_property_display = []
-        for (k, v) in graph.nodes[adjacencies[0]].items():
-            if k != 'Colab_Venues':
-                node_property_display.append('%s: %s' % (k, v))
+        node_property_display = ['%s: %s' % (k, v) for k, v in graph.nodes[adjacencies[0]].items()]
         properties = '<br />'.join(node_property_display)
         node_text.append(
             f'{adjacencies[0]}<br />Degree: {len(adjacencies[1].keys())}<br />'
