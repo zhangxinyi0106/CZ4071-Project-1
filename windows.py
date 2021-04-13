@@ -670,12 +670,27 @@ class newFacultyDialog(object):
         Form.setObjectName("Form")
         Form.resize(814, 642)
         self.logic_flow = QtWidgets.QLabel(Form)
-        self.logic_flow.setGeometry(QtCore.QRect(90, 90, 251, 401))
+        self.logic_flow.setGeometry(QtCore.QRect(30, 90, 300, 401))
         self.logic_flow.setFrameShape(QtWidgets.QFrame.Panel)
         self.logic_flow.setObjectName("logic_flow")
-        self.new_faculty = QtWidgets.QTableView(Form)
+        self.new_faculty = QtWidgets.QTableWidget(Form)
         self.new_faculty.setGeometry(QtCore.QRect(415, 91, 331, 401))
-        self.new_faculty.setObjectName("new_faculty")
+        self.new_faculty.setSizeAdjustPolicy(QtWidgets.QAbstractScrollArea.AdjustToContentsOnFirstShow)
+        self.new_faculty.setVerticalScrollMode(QtWidgets.QAbstractItemView.ScrollPerPixel)
+        self.new_faculty.setHorizontalScrollMode(QtWidgets.QAbstractItemView.ScrollPerPixel)
+        self.new_faculty.setObjectName("tableView")
+        columnCount = 20
+        rowCount = 50
+        self.new_faculty.setColumnCount(columnCount)
+        self.new_faculty.setRowCount(rowCount)
+        analyzer = Analyzer()
+        analyzer.use_external_collaborators_profiles()
+        sorted_namelist, external_profiles = analyzer.get_new_member_profile(based_on_excellece=True)
+        for row in range(rowCount):
+            for column in range(columnCount):
+                self.new_faculty.setItem(row, column,
+                                         QTableWidgetItem(str(sorted_namelist[row * columnCount + column]))
+                                         )
         self.layoutWidget = QtWidgets.QWidget(Form)
         self.layoutWidget.setGeometry(QtCore.QRect(60, 570, 701, 25))
         self.layoutWidget.setObjectName("layoutWidget")
@@ -689,7 +704,7 @@ class newFacultyDialog(object):
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         self.label = QtWidgets.QLabel(Form)
-        self.label.setGeometry(QtCore.QRect(90, 50, 47, 13))
+        self.label.setGeometry(QtCore.QRect(30, 50, 87, 13))
         self.label.setObjectName("label")
         self.label_2 = QtWidgets.QLabel(Form)
         self.label_2.setGeometry(QtCore.QRect(430, 50, 47, 13))
@@ -707,6 +722,19 @@ class newFacultyDialog(object):
     def retranslateUi(self, Form):
         _translate = QtCore.QCoreApplication.translate
         Form.setWindowTitle(_translate("Form", "Form"))
-        self.logic_flow.setText(_translate("Form", "Logic Flow"))
+        logic = "How do we swelect 1000 co-authors: \n"\
+                "sort all collaborators by (number of\n" \
+                "papers he/she collaborated with \n" \
+                "exsisting faculty members + average\n" \
+                "papper collaborated per professor \n" \
+                "throughout all candidates * number of\n" \
+                "exsisting faculty members his/she \n" \
+                "collaborated with), take first 2000\n" \
+                "(out of 9000+), fetch their detailed\n" \
+                "profiles and caculate their excellence\n" \
+                ", i.e. number of papers published in\n" \
+                "top venues, and take the first 1000\n" \
+                "with the highest excellence."
+        self.logic_flow.setText(_translate("Form", logic))
         self.label.setText(_translate("Form", "Logic flow"))
         self.label_2.setText(_translate("Form", "List"))

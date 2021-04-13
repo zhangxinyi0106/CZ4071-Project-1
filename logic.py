@@ -117,6 +117,18 @@ class MyWindow(QMainWindow):
         self.hide()
         self.myDialog2 = newFalDialog()
         self.myDialog2.show()
+        port = get_free_port()
+        t = threading.Thread(target=self.newFacApi, args=(port,), name='function')
+        t.start()
+        QDesktopServices.openUrl(QUrl('http://127.0.0.1:' + str(port) + '/'))
+
+    def newFacApi(self, p):
+        analyzer = Analyzer()
+        analyzer.use_external_collaborators_profiles()
+        sorted_namelist, external_profiles = analyzer.get_new_member_profile(based_on_excellece=True)
+        G_new = generate_graph(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles,
+                               external_profile_data=external_profiles)
+        visualize_graph(graph=G_new, port=p)
 
     def facultyMemD(self):
         self.hide()

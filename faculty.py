@@ -711,14 +711,14 @@ if __name__ == '__main__':
     """
     This is just for quick testing and not supposed to be run cons
     """
-    analyzer = Analyzer()
-
-    analyzer.use_external_collaborators_profiles()
-    sorted_namelist, external_profiles = analyzer.get_new_member_profile(based_on_excellece=True)
-    print(sorted_namelist)
-    G_new = generate_graph(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles,
-                           external_profile_data=external_profiles)
-    visualize_graph(G_new)
+    # analyzer = Analyzer()
+    #
+    # analyzer.use_external_collaborators_profiles()
+    # sorted_namelist, external_profiles = analyzer.get_new_member_profile(based_on_excellece=True)
+    # print(sorted_namelist)
+    # G_new = generate_graph(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles,
+    #                        external_profile_data=external_profiles)
+    # visualize_graph(G_new)
 
     # print(analyzer.auth_excellence)
     # G = generate_graph(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles, by_year=2021)
