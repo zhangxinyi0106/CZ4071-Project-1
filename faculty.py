@@ -534,14 +534,14 @@ class Analyzer:
         for graph in graphs:
             total_papers = set()
             for _, _, a in graph.edges(data=True):
-                total_papers |= a["paper"]
+                total_papers |= set(a["paper"].keys())
             total_num_of_papers.append(len(total_papers))
         total_num_of_venues = []
         most_frequent_venues = []
         for graph in graphs:
             total_venues = dict()
-            for _, attributes in graph.nodes(data=True):
-                total_venues.update(attributes["Colab_Venues"])
+            for _, _, attributes in graph.edges(data=True):
+                total_venues.update(attributes["paper"])
 
             total_num_of_venues.append(len(set(total_venues.values())))
             most_frequent_venues.append(sorted(list(Counter(total_venues.values()).items()), key=lambda x: x[1],
@@ -711,8 +711,8 @@ if __name__ == '__main__':
     """
     This is just for quick testing and not supposed to be run cons
     """
-    # analyzer = Analyzer()
-    #
+    analyzer = Analyzer()
+
     # analyzer.use_external_collaborators_profiles()
     # sorted_namelist, external_profiles = analyzer.get_new_member_profile(based_on_excellece=True)
     # print(sorted_namelist)
@@ -737,7 +737,7 @@ if __name__ == '__main__':
     # analyzer.plot_degree_distribution_hist(G)
     # filename = analyzer.plot_degree_distribution_loglog(G, normalized=False)
     # print("filename:", filename)
-    # T, G = generate_graphs(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles)
+    T, G = generate_graphs(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles)
     # analyzer.get_colab_properties(G)
     # analyzer.plot_avg_degree_hist(G, T)
     # analyzer.plot_avg_clust_coeff_hist(G, T)
@@ -758,6 +758,7 @@ if __name__ == '__main__':
     # print(relative_weight[0])  # num of partners / total num of partners
     # total_num_of_papers = analyzer.get_colab_properties(graphs=G)[1]
     # print(analyzer.calculate_growth_in_percentage(total_num_of_papers))
-    # subgraphs = analyzer.filter_graph_by_names(G, ['Miao Chunyan', 'Tan Rui', 'Wen Yonggang', 'AAAA'])
+    subgraphs = analyzer.filter_graph_by_names(G, ['Miao Chunyan', 'Tan Rui', 'Wen Yonggang', 'AAAA'])
+    analyzer.get_colab_properties(subgraphs)
     # subgraphs = analyzer.filter_graph_by_rank(G, {'Professor','Lecturer'})
     # visualize_graphs(tags=T, graphs=subgraphs, port=get_free_port())
