@@ -9,6 +9,15 @@ from preprocessing import *
 from pictures import PICTURE_PATH
 
 
+class Collaborator:
+    def __init__(self, pid: str, name: str):
+        self.pid = pid
+        self.name = name
+        self.partner = set()
+        self.collab_paper = set()
+        self.score = 0
+
+
 class Analyzer:
     venue_to_booktitle = dict({  # ignore all workshop papers
         'ACM SIGMOD': r'SIGMOD Conference',
@@ -54,6 +63,9 @@ class Analyzer:
                                                   sheet_name=self.top_conf_sheet_name)
         self.area_to_top_booktitle = self._area_name_to_booktitle()
         self.auth_excellence = self._get_auth_excellence()
+        self.external_collaborators = self._get_all_external_collaborators()
+        self.external_collaborators_profiles = None
+        self.external_collaborators_excellence = None
 
     def _area_name_to_booktitle(self):
         """
@@ -92,7 +104,7 @@ class Analyzer:
         else:
             raise ValueError(f'Unexpected Conference Name {venue_name} Encountered!')
 
-    def _get_auth_excellence(self) -> dict:
+    def _get_auth_excellence(self, external=False) -> dict:
         """
         count the number of paper published in the respective top conferences
         by each faculty member in the past 10 years (included)
@@ -103,13 +115,22 @@ class Analyzer:
         general_reg = re.compile(f"({'|'.join([f'({r})' for r in self.area_to_top_booktitle.values()])})$")
 
         excellence = dict()
-        for k, v in self.auth_profiles.items():
-            area = self.auth_name_data[self.auth_name_data.Faculty == k].Area.to_string(index=False)
-            if area not in self.area_to_top_booktitle:
-                print(f"Unexpected Area {area} Encountered! Matching All Top Conferences Instead...")
+
+        if external:
+            profile = self.external_collaborators_profiles
+        else:
+            profile = self.auth_profiles
+
+        for k, v in profile.items():
+            if external:
                 reg = general_reg
             else:
-                reg = re.compile(f"{self.area_to_top_booktitle[area]}$")
+                area = self.auth_name_data[self.auth_name_data.Faculty == k].Area.to_string(index=False)
+                if area not in self.area_to_top_booktitle:
+                    print(f"Unexpected Area {area} Encountered! Matching All Top Conferences Instead...")
+                    reg = general_reg
+                else:
+                    reg = re.compile(f"{self.area_to_top_booktitle[area]}$")  # in his/her respective area
 
             excellence[k] = 0
             publications = v['dblpperson']['r']
@@ -509,17 +530,22 @@ class Analyzer:
          most frequent venues (all graph-wise)
         """
         total_num_of_partners = [graph.number_of_edges() for graph in graphs]
-        total_num_of_papers = [int(graph.size(weight="weight")) for graph in graphs]
+        total_num_of_papers = []
+        for graph in graphs:
+            total_papers = set()
+            for _, _, a in graph.edges(data=True):
+                total_papers |= a["paper"]
+            total_num_of_papers.append(len(total_papers))
         total_num_of_venues = []
         most_frequent_venues = []
         for graph in graphs:
-            total_venues = []
+            total_venues = dict()
             for _, attributes in graph.nodes(data=True):
-                total_venues += (list(attributes["Colab_Venues"]))
+                total_venues.update(attributes["Colab_Venues"])
 
-            total_num_of_venues.append(len(set(total_venues)))
-            most_frequent_venues.append(sorted([(venue, frequency // 2) for (venue, frequency)
-                                                in Counter(total_venues).items()], key=lambda x: x[1], reverse=True))
+            total_num_of_venues.append(len(set(total_venues.values())))
+            most_frequent_venues.append(sorted(list(Counter(total_venues.values()).items()), key=lambda x: x[1],
+                                               reverse=True))
         return total_num_of_partners, total_num_of_papers, total_num_of_venues, most_frequent_venues
 
     @classmethod
@@ -585,16 +611,120 @@ class Analyzer:
         return ['{:.2f}%'.format((data[i] - data[i-1]) / data[i-1] * 100) if i >= 1 and data[i-1] != 0 else '-'
                 for i in range(0, len(data))]
 
+    def _get_all_external_collaborators(self) -> list:
+        """
+        get the name list of all external collaborators of faculty members
+        :return: sorted list of Collaborators object based on the hard-coded algorithm
+        """
+        faculty_pids = set({v['dblpperson']['@pid'] for v in self.auth_profiles.values()})
+
+        collaborator_list = dict()
+
+        for k, v in self.auth_profiles.items():
+            publications = v['dblpperson']['r']
+            if type(publications) is not list:
+                publications = [publications]
+
+            for pub in publications:
+                article = pub[next(iter(pub))]
+                authors = article['author'] if 'author' in article.keys() else article['editor']
+
+                if type(authors) is not list:
+                    continue
+
+                for co_auther in authors:
+                    co_pid = co_auther['@pid']
+                    if co_pid in faculty_pids:
+                        continue
+                    else:
+                        if co_pid not in collaborator_list:
+                            collaborator_list[co_pid] = Collaborator(co_pid, co_auther["#text"])
+
+                        collaborator_list[co_pid].partner.add(k)
+                        collaborator_list[co_pid].collab_paper.add(article["@key"])
+
+        avg_paper_per_partner = sum([len(c.collab_paper) / len(c.partner) for c in collaborator_list.values()]) \
+                                / len(collaborator_list)
+
+        for c in collaborator_list.values():
+            c.score = len(c.collab_paper) + avg_paper_per_partner * len(c.partner)
+
+        return sorted(collaborator_list.values(), key=lambda e: e.score, reverse=True)
+
+    def _get_external_collaborators_profile(self, top: int, reuse: bool, target_pickle_name: str) -> dict:
+        """
+        fetch the candidate collaborator profiles from dblp
+        :param top: number of top candidates to be fetched
+        :param reuse: reusing old ceche data
+        :param target_pickle_name: target cache data name
+        :return: external collaborator profiles in dictionary format; the same as faculty profile
+        """
+        if top is not None:
+            assert top > 0, 'Invalid Cut-off!'
+            candidate_collaborators = self.external_collaborators[:top]
+        else:
+            candidate_collaborators = self.external_collaborators
+
+        name_data = []
+        for c in candidate_collaborators:
+            name_data.append([c.name, f"http://dblp.org/pid/{c.pid}.xml"])
+        name_data = pd.DataFrame(name_data, columns=["Faculty", "DBLP"])
+        profile_data = fetch_dblp_profile(auth_name_data=name_data, reuse=reuse, target_pickle_name=target_pickle_name)
+
+        return profile_data
+
+    def use_external_collaborators_profiles(self, top=2000, reuse=True, target_pickle_name="external_profiles"):
+        """
+        load the external collaborators profiles; used when the adding new faculty member function is needed
+        :param top: number of top candidates to be fetched
+        :param reuse: reusing old ceche data
+        :param target_pickle_name: target cache data name
+        :return: None; stored in the analyzer object
+        """
+        assert top >= 1000, "At least 1000 is required!"
+
+        if self.external_collaborators_profiles is None:
+            self.external_collaborators_profiles = self._get_external_collaborators_profile(top, reuse,
+                                                                                            target_pickle_name)
+        if self.external_collaborators_excellence is None:
+            self.external_collaborators_excellence = self._get_auth_excellence(external=True)
+
+    def get_new_member_profile(self, based_on_excellece=True):
+        """
+        get the profiles of the chosen 1000 new faculty candidates
+        :param based_on_excellece: True if to consider the new member's excellence
+        :return: a sorted name list with score, and external collaborator profiles in dictionary format
+        """
+        assert self.external_collaborators_profiles is not None, \
+            "Please call use_external_collaborators_profiles first to load the profiles!"
+
+        if based_on_excellece:
+            name_list = [k for k, _ in sorted(self.external_collaborators_excellence.items(),
+                                              key=lambda item: item[1], reverse=True)][:1000]
+        else:
+            name_list = [c.name for c in self.external_collaborators[:1000]]
+
+        return name_list, {n: self.external_collaborators_profiles[n] for n in name_list}
+
 
 if __name__ == '__main__':
     """
-    This is just for quick testing
+    This is just for quick testing and not supposed to be run cons
     """
     analyzer = Analyzer()
-    a = analyzer.auth_excellence
-    G = generate_graph(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles, by_year=2021)
-    closeness_centrality = analyzer.analyze_centrality_of_main_component(G)["closeness_centrality"]
-    print(analyzer.get_correlation(closeness_centrality, analyzer.auth_excellence))
+
+    analyzer.use_external_collaborators_profiles()
+    sorted_namelist, external_profiles = analyzer.get_new_member_profile(based_on_excellece=True)
+    print(sorted_namelist)
+    G_new = generate_graph(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles,
+                           external_profile_data=external_profiles)
+    visualize_graph(G_new)
+
+    # print(analyzer.auth_excellence)
+    # G = generate_graph(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles, by_year=2021)
+    # visualize_graph(G)
+    # closeness_centrality = analyzer.analyze_centrality_of_main_component(G)["closeness_centrality"]
+    # print(analyzer.get_correlation(closeness_centrality, analyzer.auth_excellence))
     # G_test = analyzer.filter_graph_by_area(G, ['AI/ML', 'Computer Vision'])
     # visualize_graph(G_test, port=get_free_port())
     # for i in range(1999, 2021):
@@ -607,7 +737,8 @@ if __name__ == '__main__':
     # analyzer.plot_degree_distribution_hist(G)
     # filename = analyzer.plot_degree_distribution_loglog(G, normalized=False)
     # print("filename:", filename)
-    T, G = generate_graphs(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles)
+    # T, G = generate_graphs(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles)
+    # analyzer.get_colab_properties(G)
     # analyzer.plot_avg_degree_hist(G, T)
     # analyzer.plot_avg_clust_coeff_hist(G, T)
     # analyzer.plot_diameter_hist(G, T)
@@ -625,8 +756,8 @@ if __name__ == '__main__':
     # sub_G = analyzer.filter_graph_by_rank(G, {'Professor', "Associate Professor"})
     # relative_weight = analyzer.get_relative_colab_weight(sub_G, G)
     # print(relative_weight[0])  # num of partners / total num of partners
-    total_num_of_papers = analyzer.get_colab_properties(graphs=G)[1]
-    print(analyzer.calculate_growth_in_percentage(total_num_of_papers))
+    # total_num_of_papers = analyzer.get_colab_properties(graphs=G)[1]
+    # print(analyzer.calculate_growth_in_percentage(total_num_of_papers))
     # subgraphs = analyzer.filter_graph_by_names(G, ['Miao Chunyan', 'Tan Rui', 'Wen Yonggang', 'AAAA'])
     # subgraphs = analyzer.filter_graph_by_rank(G, {'Professor','Lecturer'})
     # visualize_graphs(tags=T, graphs=subgraphs, port=get_free_port())

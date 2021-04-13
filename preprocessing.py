@@ -95,15 +95,14 @@ def fetch_dblp_profile(auth_name_data, reuse=False, target_pickle_name=None) -> 
     profile_data = dict()
     with tqdm(total=len(url_list)) as pbar:
         for i, url in enumerate(url_list):
-            # noinspection PyBroadException
             try:
                 true_url = requests.get(url).url  # sometimes .xml will be converted to .html after redirection
                 true_url = re.sub(r'(?<=\.)html$', 'xml', true_url)
                 profile_in_xml = requests.get(true_url).content
                 profile_data[name_list[i]] = xmltodict.parse(profile_in_xml, dict_constructor=dict)
                 pbar.update(1)
-            except:
-                print(f'url {url} not fetched!')
+            except Exception as e:
+                print(f'url {url} not fetched! {str(e)}')
                 continue
 
     with open(osp.join(DATA_PATH, f'{target_pickle_name if target_pickle_name is not None else "profiles"}.pickle'),
@@ -130,13 +129,13 @@ def _append_co_auther_to_graph(authors: list, pid: str, pid_to_name: dict, facul
         elif co_pid in pid_to_name.keys():
             co_name = pid_to_name[co_pid]
 
-            # TODO: make it directional
+            # count one paper between two authors twice
             if (faculty_member_name, co_name) in list(graph.edges):
-                graph[faculty_member_name][co_name]['weight'] += 1
+                graph[faculty_member_name][co_name]['paper'].add(article["@key"])  # duplicated paper will be removed
             elif (co_name, faculty_member_name) in list(graph.edges):
-                graph[co_name][faculty_member_name]['weight'] += 1
+                graph[co_name][faculty_member_name]['paper'].add(article["@key"])
             else:
-                graph.add_edge(faculty_member_name, co_name, weight=1)
+                graph.add_edge(faculty_member_name, co_name, paper={article["@key"]})
 
             if "booktitle" in article:
                 venue = article["booktitle"]
@@ -146,7 +145,7 @@ def _append_co_auther_to_graph(authors: list, pid: str, pid_to_name: dict, facul
                 venue = "Book"
 
             for name in (faculty_member_name, co_name):
-                graph.nodes[name]['Colab_Venues'].add(venue)
+                graph.nodes[name]['Colab_Venues'][article["@key"]] = venue
 
 
 def _validate_article(article: dict, by_year: Union[int, None]) -> list:
@@ -165,28 +164,32 @@ def _validate_article(article: dict, by_year: Union[int, None]) -> list:
 
 
 def generate_graph(name_data: pd.DataFrame, profile_data: dict, by_year: int = None,
-                   faculty_member_only=True) -> nx.Graph:
+                   external_profile_data=None) -> nx.Graph:
     """
     construct a single graph from the given faculty list and dblp data with the appointed year
     :param name_data:
     :param profile_data:
     :param by_year: (included) data till witch year that the graph should present
-    :param faculty_member_only: True if excluding all other non-SCSE co-authors
+    :param external_profile_data: (optional)profiles of all other non-SCSE co-authors
     :return: graph
     """
-    # TODO: add non-faculty member co_authors
-    if not faculty_member_only:
-        raise NotImplementedError
-
     graph = nx.Graph()
 
     # add nodes
     pid_to_name = dict()
+
     for name in name_data.Faculty.unique():
         properties = name_data.loc[name_data['Faculty'] == name].drop("Faculty", 1).squeeze().to_dict()
-        properties["Colab_Venues"] = set()
+        properties["Colab_Venues"] = dict()
         graph.add_node(name, **properties)
         pid_to_name[profile_data[name]['dblpperson']['@pid']] = name
+
+    if external_profile_data is not None:
+        for name in external_profile_data.keys():
+            properties = dict(External=True, Colab_Venues=dict())
+            graph.add_node(name, **properties)
+            pid_to_name[external_profile_data[name]['dblpperson']['@pid']] = name
+        profile_data = {**profile_data, **external_profile_data}
 
     print("Constructing Graph...")
 
@@ -212,20 +215,20 @@ def generate_graph(name_data: pd.DataFrame, profile_data: dict, by_year: int = N
 
     # remove repeated counting (undirected)
     for _, _, a in graph.edges(data=True):
-        a['weight'] //= 2
+        a['weight'] = len(a['paper'])
 
     return graph
 
 
 def generate_graphs(name_data: pd.DataFrame, profile_data: dict, till_year: int = None,
-                    faculty_member_only=True) -> Tuple[List[str], List[nx.Graph]]:
+                    external_profile_data=None) -> Tuple[List[str], List[nx.Graph]]:
     """
     construct a list of graphs in sequence of years (e.g. [graph by 2000, graph by 2001 ..., graph by till_year])
     from the given faculty list and dblp data
     :param name_data:
     :param profile_data:
     :param till_year: (included) data till witch year that the graph should present. Default till the latest year.
-    :param faculty_member_only: True if excluding all other non-SCSE co-authors
+    :param external_profile_data: (optional)profiles of all other non-SCSE co-authors
     :return: list of graphs
     """
     if till_year is None:
@@ -236,7 +239,7 @@ def generate_graphs(name_data: pd.DataFrame, profile_data: dict, till_year: int 
     for year in range(2000, till_year):
         tags.append(str(year))
         graphs.append(generate_graph(name_data=name_data, profile_data=profile_data,
-                                     by_year=year, faculty_member_only=faculty_member_only))
+                                     by_year=year, external_profile_data=external_profile_data))
 
     return tags, graphs
 
@@ -346,10 +349,10 @@ def _prepare_figure(graph: nx.Graph) -> go.Figure:
     node_total_edge_weight = []
     node_text = []
     for _, adjacencies in enumerate(graph.adjacency()):
-        related_papers = 0
+        related_papers = set()
         for prop in adjacencies[1].values():
-            related_papers += prop['weight']
-        node_total_edge_weight.append(related_papers)
+            related_papers |= prop['paper']
+        node_total_edge_weight.append(len(related_papers))
         node_property_display = []
         for (k, v) in graph.nodes[adjacencies[0]].items():
             if k != 'Colab_Venues':
@@ -357,7 +360,7 @@ def _prepare_figure(graph: nx.Graph) -> go.Figure:
         properties = '<br />'.join(node_property_display)
         node_text.append(
             f'{adjacencies[0]}<br />Degree: {len(adjacencies[1].keys())}<br />'
-            f'Related Papers: {related_papers}<br />{properties}')
+            f'Related Papers: {len(related_papers)}<br />{properties}')
 
     node_trace.marker.color = node_total_edge_weight
     node_trace.text = node_text
