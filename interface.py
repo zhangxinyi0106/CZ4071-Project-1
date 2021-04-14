@@ -657,7 +657,6 @@ class facultyMemDialog(object):
             = analyzer.get_colab_properties(graphs=subgraphs)
         if i == 4:
             self.tableView.setColumnCount(21)
-            print(most_frequent_venues)
             self.tableView.setRowCount(50)
             self.tableView.setVerticalHeaderLabels([str(k) for k in range(50)])
             self.tableView.setHorizontalHeaderLabels([str(num) for num in range(2000, 2021)])
