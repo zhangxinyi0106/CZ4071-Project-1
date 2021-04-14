@@ -46,6 +46,9 @@ class FalMemDialog(QDialog):
         self.myWin = MyWindow()
         self.myWin.show()
 
+    def setFacultyList(self, facultyList):
+        self.ui.facultyList = facultyList
+
 
 class propertyDia(QDialog):
     def __init__(self, i):
@@ -86,7 +89,7 @@ class CheckBox(QDialog):
         self.hide()
         self.new = FalMemDialog()
         self.new.show()
-
+        self.new.setFacultyList(self.ui.getFacultyList())
 
 class MyWindow(QMainWindow):
     def __init__(self):

@@ -154,7 +154,7 @@ class Ui_Dialog(object):
 
 
 class checkbox_Dialog(object):
-
+    facultyList = []
     def setupUi(self, Dialog):
         self.facultyList = pd.read_excel("data/Faculty.xlsx")["Faculty"]
         Dialog.setObjectName("Dialog")
@@ -225,17 +225,25 @@ self.gridLayout.addLayout(self.horizontalLayout_{}, {}, 0, 1, 1)
         for i in range(85):
             exec("""if self.checkbox_{}.isChecked():
     ret.append(self.checkbox_{}.text())""".format(i, i))
-        print(ret)
+        self.facultyList = ret.copy()
         port = get_free_port()
         t = threading.Thread(target=self.callApi, args=(ret,port), name='function')
         t.start()
         QDesktopServices.openUrl(QUrl('http://127.0.0.1:' + str(port) + '/'))
         return ret
+
     def callApi(self,ret,p):
         analyzer = Analyzer()
         T, G = generate_graphs(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles)
         subgraphs = analyzer.filter_graph_by_names(G, ret)
         visualize_graphs(tags=T, graphs=subgraphs, port=p)
+
+    def getFacultyList(self):
+        ret = []
+        for i in range(85):
+            exec("""if self.checkbox_{}.isChecked():
+            ret.append(self.checkbox_{}.text())""".format(i, i))
+        return ret
 
 
 class propertyDialog(object):
@@ -373,7 +381,6 @@ class analyzeDialog(object):
         self.label_2.setIndent(2)
         self.label_2.setScaledContents(True)
         self.label_2.setPixmap(QtGui.QPixmap("pictures/insts_collab.png"))
-
         self.retranslateUi(Form, i)
         self.ok.clicked.connect(Form.myWindow)
         self.cancel.clicked.connect(Form.myWindow)
@@ -383,6 +390,8 @@ class analyzeDialog(object):
         _translate = QtCore.QCoreApplication.translate
         Form.setWindowTitle(_translate("Form", "Form"))
         self.analyzer = Analyzer()
+        self.T, self.G = \
+            generate_graphs(name_data=self.analyzer.auth_name_data, profile_data=self.analyzer.auth_profiles)
         if i==4:
             self.graphView = QtWidgets.QLabel(Form)
             excellence = self.analyzer.auth_excellence
@@ -465,9 +474,9 @@ class analyzeDialog(object):
 
             if i==2:
                 self.checkbox1 = QtWidgets.QCheckBox(Form)
-                self.checkbox1.setGeometry(QtCore.QRect(80, 450, 120, 30))
+                self.checkbox1.setGeometry(QtCore.QRect(80, 450, 170, 30))
                 self.checkbox1.setObjectName("rank1")
-                self.checkbox1.setText(_translate("Dialog", "Management-only"))
+                self.checkbox1.setText(_translate("Dialog", "is management?"))
                 self.option = 2
             else:
                 self.names = self.analyzer.auth_name_data['Position'].unique() if i == 1 \
@@ -521,7 +530,7 @@ class analyzeDialog(object):
 
     def callApi(self, i, ret, p):
         print("if the port refused to connect, please wait for the server to be ready and reload.")
-        T, G = generate_graphs(name_data=self.analyzer.auth_name_data, profile_data=self.analyzer.auth_profiles)
+        # T, G = generate_graphs(name_data=self.analyzer.auth_name_data, profile_data=self.analyzer.auth_profiles)
         # get 2 colab properties of all paired areas and store in excel file
         # dic = {}
         # for key in ret:
@@ -535,10 +544,12 @@ class analyzeDialog(object):
         #         total_num_of_partners, total_num_of_papers, \
         #         total_num_of_venues, most_frequent_venues \
         #             = self.analyzer.get_colab_properties(graphs=self.subgraphs)
-        #         dic[ret[k]].append(total_num_of_venues[20])
+        #         dic[ret[k]].append(total_num_of_papers[20])
         # df = pd.DataFrame(data=dic)
         # df.to_excel('./areas.xlsx')
         no_comp = []
+        G = self.G
+        T = self.T
         if i == 1:
             self.subgraphs = self.analyzer.filter_graph_by_rank(G, ret)
         elif i==2:
@@ -585,6 +596,7 @@ class analyzeDialog(object):
 
 
 class facultyMemDialog(object):
+    facultyList = []
     def setupUi(self, Form):
         Form.setObjectName("Form")
         Form.resize(847, 583)
@@ -612,6 +624,7 @@ class facultyMemDialog(object):
         self.horizontalLayout.addWidget(self.buttonBox)
         self.buttonBox.accepted.connect(Form.myWindow)
         self.buttonBox.rejected.connect(Form.myWindow)
+        self.graphs, self.analyzer = self.getGraph()
         self.property.currentIndexChanged.connect(self.updateGraph)
 
         self.retranslateUi(Form)
@@ -628,22 +641,30 @@ class facultyMemDialog(object):
         self.tableView.setHorizontalScrollMode(QtWidgets.QAbstractItemView.ScrollPerPixel)
         self.tableView.setObjectName("tableView")
 
+    def getGraph(self):
+        analyzer = Analyzer()
+        T, G = generate_graphs(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles)
+        return G, analyzer
+
     def updateGraph(self, i):
         if i == 0:
             return
-        analyzer = Analyzer()
-        T, G = generate_graphs(name_data=analyzer.auth_name_data, profile_data=analyzer.auth_profiles)
+        G = self.graphs
+        analyzer = self.analyzer
+        subgraphs = analyzer.filter_graph_by_names(G, self.facultyList)
         total_num_of_partners, total_num_of_papers, \
         total_num_of_venues, most_frequent_venues \
-            = analyzer.get_colab_properties(graphs=G)
+            = analyzer.get_colab_properties(graphs=subgraphs)
         if i == 4:
             self.tableView.setColumnCount(21)
-            self.tableView.setRowCount(len(most_frequent_venues[0]))
+            print(most_frequent_venues)
+            self.tableView.setRowCount(50)
+            self.tableView.setVerticalHeaderLabels([str(k) for k in range(50)])
             self.tableView.setHorizontalHeaderLabels([str(num) for num in range(2000, 2021)])
-            self.tableView.setVerticalHeaderLabels([str(k) for k in range(len(most_frequent_venues[0]))])
             for n in range(21):
-                for m in range(len(most_frequent_venues)):
-                    self.tableView.setItem(m, n, QTableWidgetItem(str(most_frequent_venues[n][m])))
+                for m in range(len(most_frequent_venues[n])):
+                    if most_frequent_venues[n][m]:
+                        self.tableView.setItem(m, n, QTableWidgetItem(str(most_frequent_venues[n][m])))
 
         else:
             self.tableView.setColumnCount(3)
@@ -722,16 +743,16 @@ class newFacultyDialog(object):
     def retranslateUi(self, Form):
         _translate = QtCore.QCoreApplication.translate
         Form.setWindowTitle(_translate("Form", "Form"))
-        logic = "How do we swelect 1000 co-authors: \n"\
+        logic = "How do we select 1000 co-authors: \n"\
                 "sort all collaborators by (number of\n" \
                 "papers he/she collaborated with \n" \
-                "exsisting faculty members + average\n" \
-                "papper collaborated per professor \n" \
+                "existing faculty members + average\n" \
+                "paper collaborated per professor \n" \
                 "throughout all candidates * number of\n" \
-                "exsisting faculty members his/she \n" \
+                "existing faculty members his/she \n" \
                 "collaborated with), take first 2000\n" \
                 "(out of 9000+), fetch their detailed\n" \
-                "profiles and caculate their excellence\n" \
+                "profiles and calculate their excellence\n" \
                 ", i.e. number of papers published in\n" \
                 "top venues, and take the first 1000\n" \
                 "with the highest excellence."
