@@ -1,13 +1,12 @@
 # CZ4071-Project-1
 
-### Set Up
+### Notice
+`preprocessing.py` and `faculty.py` are well-commented since they are for analysing purposes. `project.py` and
+`interface.py` are only for GUI purposes and are less documented. The users are recommended to go through the report before running.
 
-####Open the project
-Under your working directory:
-```
-git clone https://github.com/zhangxinyi0106/CZ4071-Project-1.git
-cd CZ4071-Project-1
-```
+The project, and its dependencies/provided pickles are tested on multiple Windows10 machines.
+
+### Set Up
 
 ####Environment creation
 ```
@@ -18,14 +17,8 @@ conda activate <ur_env_name>
 * go to Settings -> Project:<project_name> -> Change Project Interpreter.
 * Add python.exe under `PATH_TO_ANACONDA/envs/UR_ENV` as interpreter.
 
-###Update Dependency
-
-####Export updated dependency:
+### Run
+To start the Analysing Tool:
 ```
-conda env export > environment.yml
-```
-
-####Update environment:
-```
-conda env update --file environment.yml
+python project.py
 ```
