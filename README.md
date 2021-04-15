@@ -8,7 +8,7 @@ The project, and its dependencies/provided pickles are tested on multiple Window
 
 ### Set Up
 
-####Environment creation
+#### Environment creation
 ```
 conda env create -n <ur_env_name> -f environment.yml
 conda activate <ur_env_name>
